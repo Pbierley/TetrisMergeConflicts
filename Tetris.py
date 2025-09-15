@@ -3,7 +3,7 @@ import random
 
 # Global constants - it's OK as it's read only
 # code smell - why list when tuple (immutable) is OK? Use immutable objects as much as possible
-Colors = [
+Colors = (
     (0, 0, 0),
     (120, 37, 179),
     (100, 179, 179),
@@ -11,7 +11,7 @@ Colors = [
     (80, 134, 22),
     (180, 34, 22),
     (180, 34, 122),
-]
+)
 
 # Define some colors
 BLACK = (0, 0, 0)
@@ -19,7 +19,7 @@ WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
 
 # code smell - why use mutable list when tuple (immutable) is OK? Use immutable objects as much as possible
-Figures = [
+Figures = (
     [[1, 5, 9, 13], [4, 5, 6, 7]],
     [[4, 5, 9, 10], [2, 6, 5, 9]],
     [[6, 7, 9, 10], [1, 5, 6, 10]],
@@ -27,7 +27,7 @@ Figures = [
     [[1, 2, 6, 10], [5, 6, 7, 9], [2, 6, 10, 11], [3, 5, 6, 7]],
     [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]],
     [[1, 2, 5, 6]],
-]
+)
 size = (400, 500)
 
 # Global variables (code smell - we should remove them by refactoring)
