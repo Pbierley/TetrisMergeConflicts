@@ -2,7 +2,6 @@ import pygame
 import random
 
 # Global constants - it's OK as it's read only
-# code smell - why list when tuple (immutable) is OK? Use immutable objects as much as possible
 Colors = (
     (0, 0, 0),
     (120, 37, 179),
@@ -25,7 +24,6 @@ J_BLOCK = [[1, 2, 5, 9], [0, 4, 5, 6], [1, 5, 9, 8], [4, 5, 6, 10]]
 L_BLOCK = [[1, 2, 6, 10], [5, 6, 7, 9], [2, 6, 10, 11], [3, 5, 6, 7]]
 T_BLOCK = [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]]
 O_BLOCK = [[1, 2, 5, 6]]
-# code smell - why use mutable list when tuple (immutable) is OK? Use immutable objects as much as possible
 Figures = (
     I_BLOCK,
     Z_BLOCK,
@@ -149,10 +147,6 @@ def rotate():
     if intersects(Figures[Type][Rotation]):
         Rotation = old_rotation
         
-def init_board():
-    for i in range(Height):
-        new_line = [0] * Width # polymorphism using * 
-        Field.append(new_line)
 
 def draw_board(screen, x, y, zoom):
     screen.fill(WHITE)
@@ -180,8 +174,9 @@ def initialize(height, width):
     Width = width
     Field = []
     State = "start"
-    # code smell - why another initializion in the initalize() function?
-    init_board()
+    for i in range(Height):
+        new_line = [0] * Width # polymorphism using * 
+        Field.append(new_line)
 
 def main():
     # Pygame related init
