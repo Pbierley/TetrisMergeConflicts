@@ -1,251 +1,301 @@
 import pygame
 import random
 
-# Global constants - it's OK as it's read only
-Colors = (
-    (0, 0, 0),
-    (120, 37, 179),
-    (100, 179, 179),
-    (80, 34, 22),
-    (80, 134, 22),
-    (180, 34, 22),
-    (180, 34, 122),
+# Constants
+COLORS = (
+    (0, 0, 0),        # Black (empty)
+    (120, 37, 179),   # Purple
+    (100, 179, 179),  # Cyan
+    (80, 34, 22),     # Brown
+    (80, 134, 22),    # Green
+    (180, 34, 22),    # Red
+    (180, 34, 122),   # Pink
 )
 
-# Define some colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
 
-I_BLOCK = [[1, 5, 9, 13], [4, 5, 6, 7]]
-Z_BLOCK = [[4, 5, 9, 10], [2, 6, 5, 9]]
-S_BLOCK = [[6, 7, 9, 10], [1, 5, 6, 10]]
-J_BLOCK = [[1, 2, 5, 9], [0, 4, 5, 6], [1, 5, 9, 8], [4, 5, 6, 10]]
-L_BLOCK = [[1, 2, 6, 10], [5, 6, 7, 9], [2, 6, 10, 11], [3, 5, 6, 7]]
-T_BLOCK = [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]]
-O_BLOCK = [[1, 2, 5, 6]]
-Figures = (
-    I_BLOCK,
-    Z_BLOCK,
-    S_BLOCK,
-    J_BLOCK,
-    L_BLOCK,
-    T_BLOCK,
-    O_BLOCK   
-)
-size = (400, 500)
+PIECES = [
+    [[1, 5, 9, 13], [4, 5, 6, 7]],  # I
+    [[4, 5, 9, 10], [2, 6, 5, 9]],  # Z
+    [[6, 7, 9, 10], [1, 5, 6, 10]], # S
+    [[1, 2, 5, 9], [0, 4, 5, 6], [1, 5, 9, 8], [4, 5, 6, 10]], # J
+    [[1, 2, 6, 10], [5, 6, 7, 9], [2, 6, 10, 11], [3, 5, 6, 7]], # L
+    [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]], # T
+    [[1, 2, 5, 6]]  # O
+]
 
-# Global variables (code smell - we should remove them by refactoring)
-Type = 0
-Color = 0
-Rotation = 0
+WINDOW_SIZE = (400, 500)
 
-State = "start" # or "gameover"
-Field = []
 
-# Tetris block Height and Width
-Height = 0
-Width = 0
-# StartX/Y position in the screen
-StartX = 100
-StartY= 60
-# Block size
-Tzoom = 20 # code smell - bad name, can you guess Tzoom from its name? 
-# Shift left/right or up/down
-ShiftX = 0
-ShiftY = 0
-Score = 0
+class Piece:
+    """Represents a Tetris piece with its position, rotation, and type"""
+    
+    def __init__(self, x=3, y=0):
+        self.x = x
+        self.y = y
+        self.type = random.randint(0, len(PIECES) - 1)
+        self.color = random.randint(1, len(COLORS) - 1)
+        self.rotation = 0
+    
+    def get_blocks(self):
+        """Get the current block positions"""
+        return PIECES[self.type][self.rotation]
+    
+    def move(self, dx, dy, board):
+        """Try to move the piece. Returns True if successful."""
+        old_x, old_y = self.x, self.y
+        self.x += dx
+        self.y += dy
+        
+        if board.collides(self):
+            self.x, self.y = old_x, old_y
+            return False
+        return True
+    
+    def rotate(self, board):
+        """Try to rotate the piece. Returns True if successful."""
+        old_rotation = self.rotation
+        self.rotation = (self.rotation + 1) % len(PIECES[self.type])
+        
+        if board.collides(self):
+            self.rotation = old_rotation
+            return False
+        return True
+    
+    def drop_to_bottom(self, board):
+        """Drop the piece to the bottom"""
+        while self.move(0, 1, board):
+            pass
 
-# code smell - global variable access, refactor to use
-# parameters (if you use a function) or class fields (if you use a class)
-def make_figure(x, y):
-    global ShiftX, ShiftY, Type, Color, Rotation
-    ShiftX = x
-    ShiftY = y
-    Type = random.randint(0, len(Figures) - 1)
-    Color = random.randint(1, len(Colors) - 1)
-    Rotation = 0
 
-def intersects(image):
-    intersection = False
-    # code smell - what is 4? Magic number
-    for i in range(4):
-        for j in range(4):
-            if i * 4 + j in image:
-                # out of bounds
-                # code smell - confusing, why Y is related i and X is related j?
-                if i + ShiftY > Height - 1 or \
-                   j + ShiftX > Width - 1 or \
-                   j + ShiftX < 0 or \
-                   Field[i + ShiftY][j + ShiftX] > 0:
-                       intersection = True
-    return intersection
-
-def break_lines():
-    # code smell - why is it hard to read code? why make two sub-functions
-    # for i in ...
-    #  is_filled = check_row_filled(...)
-    #  if is_filled:
-    #.   delete_row(...)
-    global Height, Field, Score
-    lines = 0
-    for i in range(1, Height):
-        zeros = 0
-        for j in range(Width):
-            if Field[i][j] == 0:
-                zeros += 1
-        # this row is full
-        if zeros == 0:
-            lines += 1
-            for k in range(i, 1, -1):
-                for j in range(Width):
-                    Field[k][j] = Field[k - 1][j]
+class Board:
+    """Represents the game board/playing field"""
+    
+    def __init__(self, width=10, height=20):
+        self.width = width
+        self.height = height
+        self.grid = [[0 for _ in range(width)] for _ in range(height)]
+    
+    def collides(self, piece):
+        """Check if piece collides with board boundaries or placed pieces"""
+        blocks = piece.get_blocks()
+        
+        for i in range(4):
+            for j in range(4):
+                if i * 4 + j in blocks:
+                    new_y = i + piece.y
+                    new_x = j + piece.x
                     
-    Score += lines ** 2 # code smell - what if I want to use other stragies for score computation?    
-
-def freeze(image):
-    # code smell - can you guess what it does? why there is no comments on what it does, how, and why?
-    global Field, State
-    for i in range(4):
-        for j in range(4):
-            if i * 4 + j in image:
-                Field[i + ShiftY][j + ShiftX] = Color
-    break_lines()
-    make_figure(3, 0) 
-    if intersects(Figures[Type][Rotation]):
-        State = "gameover"
-
-def go_space():
-    global ShiftY
-    while not intersects(Figures[Type][Rotation]):
-        ShiftY += 1
-    ShiftY -= 1
-    freeze(Figures[Type][Rotation])
-
-def go_down():
-    global ShiftY
-    ShiftY += 1
-    if intersects(Figures[Type][Rotation]):
-        ShiftY -= 1 
-        freeze(Figures[Type][Rotation])
-
-def go_side(dx):
-    global ShiftX
-    old_x = ShiftX
-    ShiftX += dx
-    if intersects(Figures[Type][Rotation]):
-        ShiftX = old_x
-
-def rotate():
-    global Rotation
-    def rotate_figure():
-        global Rotation
-        Rotation = (Rotation + 1) % len(Figures[Type])
+                    # Check boundaries and collisions
+                    if (new_y >= self.height or 
+                        new_x >= self.width or 
+                        new_x < 0 or 
+                        (new_y >= 0 and self.grid[new_y][new_x] > 0)):
+                        return True
+        return False
+    
+    def place_piece(self, piece):
+        """Place a piece on the board (freeze it)"""
+        blocks = piece.get_blocks()
         
-    old_rotation = Rotation
-    rotate_figure()
-    if intersects(Figures[Type][Rotation]):
-        Rotation = old_rotation
+        for i in range(4):
+            for j in range(4):
+                if i * 4 + j in blocks:
+                    board_y = i + piece.y
+                    board_x = j + piece.x
+                    if board_y >= 0:  # Don't place blocks above visible area
+                        self.grid[board_y][board_x] = piece.color
+    
+    def clear_lines(self):
+        """Clear completed lines and return number of lines cleared"""
+        lines_cleared = 0
         
+        # Check from bottom to top
+        row = self.height - 1
+        while row >= 0:
+            if self._is_line_full(row):
+                self._remove_line(row)
+                lines_cleared += 1
+                # Don't decrement row, check same position again
+            else:
+                row -= 1
+                
+        return lines_cleared
+    
+    def _is_line_full(self, row):
+        """Check if a row is completely filled"""
+        return all(cell > 0 for cell in self.grid[row])
+    
+    def _remove_line(self, row_to_remove):
+        """Remove a line and shift everything down"""
+        del self.grid[row_to_remove]
+        self.grid.insert(0, [0] * self.width)
 
-def draw_board(screen, x, y, zoom):
-    screen.fill(WHITE)
 
-    for i in range(Height):
-        for j in range(Width):
-            pygame.draw.rect(screen, GRAY, [x + zoom * j, y + zoom * i, zoom, zoom], 1)
-            if Field[i][j] > 0:
-                pygame.draw.rect(screen, Colors[Field[i][j]],
-                                 [x + zoom * j + 1, y + zoom * i + 1, zoom - 2, zoom - 1])
-
-def draw_figure(screen, image, x, y, shift_x, shift_y, zoom):
-    for i in range(4):
-        for j in range(4):
-            p = i * 4 + j
-            if p in image:
-                pygame.draw.rect(screen, Colors[Color],
-                                 [x + zoom * (j + shift_x) + 1,
-                                  y + zoom * (i + shift_y) + 1,
-                                  zoom - 2, zoom - 2])
+class Game:
+    """Manages the game state, score, and piece spawning"""
+    
+    def __init__(self, width=10, height=20):
+        self.board = Board(width, height)
+        self.current_piece = None
+        self.score = 0
+        self.state = "playing"  # "playing" or "gameover"
+        self.spawn_new_piece()
+    
+    def spawn_new_piece(self):
+        """Create a new piece at the top"""
+        self.current_piece = Piece()
+        
+        # Check if game is over (can't place new piece)
+        if self.board.collides(self.current_piece):
+            self.state = "gameover"
+    
+    def move_piece(self, dx, dy):
+        """Move the current piece"""
+        if self.state == "playing" and self.current_piece:
+            return self.current_piece.move(dx, dy, self.board)
+        return False
+    
+    def rotate_piece(self):
+        """Rotate the current piece"""
+        if self.state == "playing" and self.current_piece:
+            return self.current_piece.rotate(self.board)
+        return False
+    
+    def drop_piece(self):
+        """Drop current piece to bottom and freeze it"""
+        if self.state == "playing" and self.current_piece:
+            self.current_piece.drop_to_bottom(self.board)
+            self.freeze_current_piece()
+    
+    def tick(self):
+        """Game tick - try to move piece down"""
+        if self.state == "playing" and self.current_piece:
+            if not self.current_piece.move(0, 1, self.board):
+                self.freeze_current_piece()
+    
+    def freeze_current_piece(self):
+        """Freeze the current piece and handle line clearing"""
+        if self.current_piece:
+            self.board.place_piece(self.current_piece)
+            lines_cleared = self.board.clear_lines()
             
-def initialize(height, width):
-    global Height, Width, Field, State
-    Height = height
-    Width = width
-    Field = []
-    State = "start"
-    for i in range(Height):
-        new_line = [0] * Width # polymorphism using * 
-        Field.append(new_line)
+            # Update score
+            if lines_cleared > 0:
+                self.score += lines_cleared ** 2
+            
+            self.spawn_new_piece()
+
+
+def draw_board(screen, board, start_x, start_y, block_size):
+    """Draw the game board"""
+    screen.fill(WHITE)
+    
+    for i in range(board.height):
+        for j in range(board.width):
+            x = start_x + block_size * j
+            y = start_y + block_size * i
+            
+            # Draw grid
+            pygame.draw.rect(screen, GRAY, [x, y, block_size, block_size], 1)
+            
+            # Draw placed pieces
+            if board.grid[i][j] > 0:
+                pygame.draw.rect(screen, COLORS[board.grid[i][j]],
+                               [x + 1, y + 1, block_size - 2, block_size - 2])
+
+
+def draw_piece(screen, piece, start_x, start_y, block_size):
+    """Draw the current falling piece"""
+    if not piece:
+        return
+        
+    blocks = piece.get_blocks()
+    
+    for i in range(4):
+        for j in range(4):
+            if i * 4 + j in blocks:
+                x = start_x + block_size * (j + piece.x) + 1
+                y = start_y + block_size * (i + piece.y) + 1
+                
+                pygame.draw.rect(screen, COLORS[piece.color],
+                               [x, y, block_size - 2, block_size - 2])
+
 
 def main():
-    # Pygame related init
+    # Initialize pygame
     pygame.init()
-    screen = pygame.display.set_mode(size)
+    screen = pygame.display.set_mode(WINDOW_SIZE)
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
-
-    # we need pressing_down, fps, and counter to go_down() the Tetris Figure
+    
+    # Game settings
+    start_x, start_y = 100, 60
+    block_size = 20
     fps = 25
+    
+    # Game state
+    game = Game()
     counter = 0
     pressing_down = False
-
-    initialize(20, 10) # code smell - what is 20 and 10? Can we use keyword argument? 
-    make_figure(3,0)
     done = False
+    
     while not done:
         counter += 1
         if counter > 100000:
             counter = 0
-            
-        # Check if we need to automatically go down
-        if counter % (fps // 2) == 0 or pressing_down: 
-            if State == "start":
-                go_down()
-
+        
+        # Automatic piece dropping
+        if counter % (fps // 2) == 0 or pressing_down:
+            if game.state == "playing":
+                game.tick()
+        
+        # Handle events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 done = True
+                
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    rotate()
-                if event.key == pygame.K_LEFT:
-                    go_side(-1)
-                if event.key == pygame.K_RIGHT:
-                    go_side(1)
-                if event.key == pygame.K_SPACE:
-                    go_space()
-                if event.key == pygame.K_q:
-                    if State == "gameover":
-                        done = True
-                if event.key == pygame.K_DOWN:
+                    game.rotate_piece()
+                elif event.key == pygame.K_LEFT:
+                    game.move_piece(-1, 0)
+                elif event.key == pygame.K_RIGHT:
+                    game.move_piece(1, 0)
+                elif event.key == pygame.K_SPACE:
+                    game.drop_piece()
+                elif event.key == pygame.K_DOWN:
                     pressing_down = True
-
+                elif event.key == pygame.K_q and game.state == "gameover":
+                    done = True
+            
             if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
                 pressing_down = False
-                
-        draw_board(screen = screen, x = StartX, y = StartY, zoom = Tzoom)
         
-        # code smell - how many values duplication Figures[Type][Rotation]
-        draw_figure(screen = screen, image = Figures[Type][Rotation], x = StartX, y = StartY, shift_x = ShiftX, shift_y = ShiftY, zoom = Tzoom)
-
+        # Draw everything
+        draw_board(screen, game.board, start_x, start_y, block_size)
+        draw_piece(screen, game.current_piece, start_x, start_y, block_size)
+        
+        # Draw score
         font = pygame.font.SysFont('Calibri', 25, True, False)
-        global Score
-        text = font.render("Score: " + str(Score), True, BLACK)
-        screen.blit(text, [0, 0])
+        score_text = font.render(f"Score: {game.score}", True, BLACK)
+        screen.blit(score_text, [10, 10])
         
-        if State == "gameover":
-            font1 = pygame.font.SysFont('Calibri', 65, True, False)
-            text_game_over = font1.render("Game Over", True, (255, 125, 0))
-            text_game_over1 = font1.render("Enter q to Quit", True, (255, 215, 0))        
-            screen.blit(text_game_over, [20, 200])
-            screen.blit(text_game_over1, [25, 265])
-
-        # refresh the screen
+        # Draw game over screen
+        if game.state == "gameover":
+            font_large = pygame.font.SysFont('Calibri', 65, True, False)
+            game_over_text = font_large.render("Game Over", True, (255, 125, 0))
+            quit_text = font_large.render("Press Q to Quit", True, (255, 215, 0))
+            screen.blit(game_over_text, [20, 200])
+            screen.blit(quit_text, [25, 265])
+        
         pygame.display.flip()
         clock.tick(fps)
-
+    
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
