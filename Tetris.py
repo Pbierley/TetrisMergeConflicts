@@ -1,5 +1,12 @@
 import pygame
 import random
+import os
+from supabase import create_client, Client
+
+SUPABASE_URL="https://ddafhennccnnqlzdaxer.supabase.co"
+SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkYWZoZW5uY2NubnFsemRheGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MzkxMjUsImV4cCI6MjA3NDMxNTEyNX0.iBn49djWQBUkoyJ6dXFD9g02oNibyhU8XRCEpNFQCtM"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Constants
 COLORS = (
@@ -285,6 +292,14 @@ def main():
         
         # Draw game over screen
         if game.state == "gameover":
+
+            # Update leaderboard in Supabase
+            response = (
+                supabase.table("Leaderboard")
+                .insert({"name": "Test_User", "score": game.score})
+                .execute()
+            )
+
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
             game_over_text = font_large.render("Game Over", True, (255, 125, 0))
             quit_text = font_large.render("Press Q to Quit", True, (255, 215, 0))
@@ -296,9 +311,6 @@ def main():
     
     pygame.quit()
 
-
-if __name__ == "__main__":
-    main()
 
 if __name__ == "__main__":
     main()
