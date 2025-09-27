@@ -1,6 +1,5 @@
 import pygame
 import random
-import os
 from supabase import create_client, Client
 
 SUPABASE_URL="https://ddafhennccnnqlzdaxer.supabase.co"
@@ -149,6 +148,7 @@ class Game:
         self.current_piece = None
         self.score = 0
         self.state = "playing"  # "playing" or "gameover"
+        self.score_saved = False  # Track if score has been saved to database
         self.spawn_new_piece()
     
     def spawn_new_piece(self):
@@ -292,13 +292,19 @@ def main():
         
         # Draw game over screen
         if game.state == "gameover":
-
-            # Update leaderboard in Supabase
-            response = (
-                supabase.table("Leaderboard")
-                .insert({"name": "Test_User", "score": game.score})
-                .execute()
-            )
+            # Only save score once when game ends
+            if not game.score_saved:
+                try:
+                    # Update leaderboard in Supabase
+                    response = (
+                        supabase.table("Leaderboard")
+                        .insert({"name": "Test_User", "score": game.score})
+                        .execute()
+                    )
+                    game.score_saved = True
+                    print(f"Score {game.score} saved to database!")
+                except Exception as e:
+                    print(f"Error saving score: {e}")
 
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
             game_over_text = font_large.render("Game Over", True, (255, 125, 0))
