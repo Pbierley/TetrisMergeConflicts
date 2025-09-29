@@ -137,13 +137,14 @@ class Board:
 class Game:
     """Manages the game state, score, and piece spawning"""
     
-    def __init__(self, width=10, height=20):
+    def __init__(self, width=10, height=20, sounds=None):
         self.board = Board(width, height)
         self.current_piece = None
         self.score = 0
         self.state = "playing"  # "playing" or "gameover"
         self.spawn_new_piece()
-    
+        self.sounds = sounds
+
     def spawn_new_piece(self):
         """Create a new piece at the top"""
         self.current_piece = Piece()
@@ -179,8 +180,15 @@ class Game:
     def freeze_current_piece(self):
         """Freeze the current piece and handle line clearing"""
         if self.current_piece:
+            # Play placed sound
+            if self.sounds:
+                self.sounds['placed'].play()
             self.board.place_piece(self.current_piece)
             lines_cleared = self.board.clear_lines()
+
+            # Play line clear sound
+            if self.sounds and lines_cleared > 0:
+                self.sounds['line_clear'].play()
             
             # Update score
             if lines_cleared > 0:
@@ -226,10 +234,22 @@ def draw_piece(screen, piece, start_x, start_y, block_size):
 
 def main():
     # Initialize pygame
+    pygame.mixer.pre_init()
     pygame.init()
     screen = pygame.display.set_mode(WINDOW_SIZE)
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
+
+    # Play song
+    pygame.mixer.music.load('./assets/intro-theme.mp3')
+    pygame.mixer.music.set_volume(0.3)
+    pygame.mixer.music.play(-1)
+
+    # Load sound effects early
+    sounds = {
+        'placed': pygame.mixer.Sound('./assets/bloop-short.mp3'),
+        'line_clear': pygame.mixer.Sound('./assets/debris-break.mp3'),
+    }
     
     # Game settings
     start_x, start_y = 100, 60
@@ -237,7 +257,7 @@ def main():
     fps = 25
     
     # Game state
-    game = Game()
+    game = Game(sounds=sounds)
     counter = 0
     pressing_down = False
     done = False
