@@ -26,7 +26,7 @@ PIECES = [
     [[1, 2, 5, 6]]  # O
 ]
 
-WINDOW_SIZE = (400, 500)
+WINDOW_SIZE = (600, 500)
 
 
 class Piece:
@@ -140,6 +140,7 @@ class Game:
     def __init__(self, width=10, height=20, sounds=None):
         self.board = Board(width, height)
         self.current_piece = None
+        self.next_piece = None
         self.score = 0
         self.state = "playing"  # "playing" or "gameover"
         self.spawn_new_piece()
@@ -147,7 +148,11 @@ class Game:
 
     def spawn_new_piece(self):
         """Create a new piece at the top"""
-        self.current_piece = Piece()
+        if self.next_piece is  None:
+            self.next_piece = Piece()
+
+        self.current_piece = self.next_piece
+        self.next_piece = Piece()
         
         # Check if game is over (can't place new piece)
         if self.board.collides(self.current_piece):
@@ -232,6 +237,7 @@ def draw_piece(screen, piece, start_x, start_y, block_size):
                                [x, y, block_size - 2, block_size - 2])
 
 
+
 def main():
     # Initialize pygame
     pygame.mixer.pre_init()
@@ -298,6 +304,15 @@ def main():
         draw_board(screen, game.board, start_x, start_y, block_size)
         draw_piece(screen, game.current_piece, start_x, start_y, block_size)
         
+        # Box to show the next piece
+        preview_x, preview_y = 350, 100
+        draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
+
+        # Label for the next piece
+        font = pygame.font.SysFont('Calibri', 20, True, False)
+        next_text = font.render("Next Piece:", True, BLACK)
+        screen.blit(next_text, [preview_x - 20, preview_y - 30])
+
         # Draw score
         font = pygame.font.SysFont('Calibri', 25, True, False)
         score_text = font.render(f"Score: {game.score}", True, BLACK)
