@@ -1,5 +1,12 @@
 import pygame
 import random
+from supabase import create_client, Client
+
+
+SUPABASE_URL="https://ddafhennccnnqlzdaxer.supabase.co"
+SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkYWZoZW5uY2NubnFsemRheGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3MzkxMjUsImV4cCI6MjA3NDMxNTEyNX0.iBn49djWQBUkoyJ6dXFD9g02oNibyhU8XRCEpNFQCtM"
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Constants
 COLORS = (
@@ -26,6 +33,7 @@ PIECES = [
     [[1, 2, 5, 6]]  # O
 ]
 
+
 WINDOW_SIZE = (600, 500)
 
 
@@ -48,6 +56,7 @@ class Piece:
         old_x, old_y = self.x, self.y
         self.x += dx
         self.y += dy
+
         
         if board.collides(self):
             self.x, self.y = old_x, old_y
@@ -82,6 +91,7 @@ class Board:
         """Check if piece collides with board boundaries or placed pieces"""
         blocks = piece.get_blocks()
         
+
         for i in range(4):
             for j in range(4):
                 if i * 4 + j in blocks:
@@ -136,13 +146,14 @@ class Board:
 
 class Game:
     """Manages the game state, score, and piece spawning"""
-    
+
     def __init__(self, width=10, height=20, sounds=None):
         self.board = Board(width, height)
         self.current_piece = None
         self.next_piece = None
         self.score = 0
         self.state = "playing"  # "playing" or "gameover"
+        self.score_saved = False  # Track if score has been saved to database
         self.spawn_new_piece()
         self.sounds = sounds
 
@@ -185,6 +196,7 @@ class Game:
     def freeze_current_piece(self):
         """Freeze the current piece and handle line clearing"""
         if self.current_piece:
+
             # Play placed sound
             if self.sounds:
                 self.sounds['placed'].play()
@@ -200,7 +212,6 @@ class Game:
                 self.score += lines_cleared ** 2
             
             self.spawn_new_piece()
-
 
 def draw_board(screen, board, start_x, start_y, block_size):
     """Draw the game board"""
@@ -237,7 +248,6 @@ def draw_piece(screen, piece, start_x, start_y, block_size):
                                [x, y, block_size - 2, block_size - 2])
 
 
-
 def main():
     # Initialize pygame
     pygame.mixer.pre_init()
@@ -263,6 +273,7 @@ def main():
     fps = 25
     
     # Game state
+
     game = Game(sounds=sounds)
     counter = 0
     pressing_down = False
@@ -320,6 +331,21 @@ def main():
         
         # Draw game over screen
         if game.state == "gameover":
+            # Only save score once when game ends
+            if not game.score_saved:
+                try:
+                    # Update leaderboard in Supabase
+                    response = (
+                        supabase.table("Leaderboard")
+                        .insert({"name": "Test_User", "score": game.score})
+                        .execute()
+                    )
+                    game.score_saved = True
+                    print(f"Score {game.score} saved to database!")
+                except Exception as e:
+                    print(f"Error saving score: {e}")
+
+
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
             game_over_text = font_large.render("Game Over", True, (255, 125, 0))
             quit_text = font_large.render("Press Q to Quit", True, (255, 215, 0))
