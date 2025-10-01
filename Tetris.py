@@ -1,6 +1,7 @@
 import pygame
 import random
 from supabase import create_client, Client
+from pathlib import Path
 
 
 SUPABASE_URL="https://ddafhennccnnqlzdaxer.supabase.co"
@@ -256,15 +257,20 @@ def main():
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
+    # Asset path
+
+    BASE_DIR = Path(__file__).parent
+    ASSETS_DIR = BASE_DIR / "assets"
+
     # Play song
-    pygame.mixer.music.load('./assets/intro-theme.mp3')
+    pygame.mixer.music.load(str(ASSETS_DIR / "intro-theme.mp3"))
     pygame.mixer.music.set_volume(0.3)
     pygame.mixer.music.play(-1)
 
     # Load sound effects early
     sounds = {
-        'placed': pygame.mixer.Sound('./assets/bloop-short.mp3'),
-        'line_clear': pygame.mixer.Sound('./assets/debris-break.mp3'),
+        'placed': pygame.mixer.Sound(str(ASSETS_DIR / "bloop-short.mp3")),
+        'line_clear': pygame.mixer.Sound(str(ASSETS_DIR /"debris-break.mp3")),
     }
     
     # Game settings
