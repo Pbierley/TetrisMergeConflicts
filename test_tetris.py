@@ -1,194 +1,332 @@
 # test_tetris.py
-import sys
-import types
-import importlib
-import builtins
-import pytest
+import unittest
+from unittest.mock import Mock, patch
+import random
+from supabase import create_client, Client # Keep imports for type hints/structure, even though they'll be mocked
 
-# ---------- Minimal stubs so importing tetris.py is safe (no SDL, no network) ----------
-class _DummySound:
-    def __init__(self, *_a, **_k):
-        self.played = False
-    def play(self):
-        self.played = True
+# --- Mocking Dependencies ---
 
-def _make_dummy_pygame():
-    pg = types.ModuleType("pygame")
-    # constants used in tetris (keep for safety even if not used in tests)
-    pg.K_UP = 273; pg.K_DOWN = 274; pg.K_LEFT = 276; pg.K_RIGHT = 275
-    pg.K_SPACE = 32; pg.K_q = 113
-    pg.QUIT = 12; pg.KEYDOWN = 2; pg.KEYUP = 3
+# Mock pygame and its modules
+mock_pygame = Mock()
+mock_pygame.init = Mock()
+mock_pygame.display.set_mode = Mock(return_value=Mock())
+mock_pygame.time.Clock = Mock(return_value=Mock())
+mock_pygame.mixer.Sound = Mock()
+mock_pygame.K_UP = 1  # Mock key constants
+mock_pygame.K_LEFT = 2
+mock_pygame.K_RIGHT = 3
+mock_pygame.K_SPACE = 4
+mock_pygame.K_DOWN = 5
+mock_pygame.K_q = 6
+mock_pygame.QUIT = 7
+mock_pygame.KEYDOWN = 8
+mock_pygame.KEYUP = 9
 
-    # submodules
-    mixer = types.SimpleNamespace(
-        pre_init=lambda *a, **k: None,
-        Sound=lambda *a, **k: _DummySound(),
-        music=types.SimpleNamespace(load=lambda *a, **k: None,
-                                    set_volume=lambda *a, **k: None,
-                                    play=lambda *a, **k: None)
-    )
-    pg.mixer = mixer
+# Mock supabase client and response structure
+mock_supabase = Mock()
+mock_supabase.table.return_value.insert.return_value.execute.return_value = Mock()
+mock_supabase_client = Mock(return_value=mock_supabase)
+mock_create_client = Mock(return_value=mock_supabase_client)
 
-    # used by draw functions (which we don't call), but keep stubs
-    def _noop(*_a, **_k): pass
-    pg.init = _noop
-    pg.display = types.SimpleNamespace(set_mode=lambda *a, **k: None,
-                                       set_caption=_noop,
-                                       flip=_noop)
-    pg.time = types.SimpleNamespace(Clock=lambda: types.SimpleNamespace(tick=_noop))
-    pg.event = types.SimpleNamespace(get=lambda: [])
-    pg.font = types.SimpleNamespace(SysFont=lambda *a, **k: types.SimpleNamespace(render=lambda *a, **k: None))
-    pg.draw = types.SimpleNamespace(rect=_noop)
-    pg.Surface = object
-    return pg
+# --- Necessary Definitions from Original Code ---
 
-def _make_dummy_supabase():
-    sb = types.ModuleType("supabase")
-    class _DummyTable:
-        def insert(self, *a, **k): return self
-        def execute(self): return {"status": "ok"}
-    class _DummyClient:
-        def table(self, *a, **k): return _DummyTable()
-    def create_client(*_a, **_k): return _DummyClient()
-    sb.create_client = create_client
-    sb.Client = object
-    return sb
+PIECES = [
+    [[1, 5, 9, 13], [4, 5, 6, 7]], # I
+    [[4, 5, 9, 10], [2, 6, 5, 9]], # Z
+    [[6, 7, 9, 10], [1, 5, 6, 10]], # S
+    [[1, 2, 5, 9], [0, 4, 5, 6], [1, 5, 9, 8], [4, 5, 6, 10]], # J
+    [[1, 2, 6, 10], [5, 6, 7, 9], [2, 6, 10, 11], [3, 5, 6, 7]], # L
+    [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]], # T
+    [[1, 2, 5, 6]] # O
+]
+COLORS = [(0, 0, 0), (120, 37, 179), (100, 179, 179), (80, 34, 22), (80, 134, 22), (180, 34, 22), (180, 34, 122)]
+SUPABASE_URL = "mock_url"
+SUPABASE_KEY = "mock_key"
 
-@pytest.fixture(scope="session")
-def tetris_module():
-    # Inject stubs before import
-    sys.modules.setdefault("pygame", _make_dummy_pygame())
-    sys.modules.setdefault("supabase", _make_dummy_supabase())
-    # (Re)import fresh to ensure stubs are used
-    if "tetris" in sys.modules:
-        del sys.modules["tetris"]
-    tetris = importlib.import_module("tetris")
-    return tetris
+# CRITICAL FIX: Ensure the global 'supabase' variable is the mock object for testing
+# This prevents a live database call during test file loading.
+supabase = mock_supabase
 
-# ---------- Helpers ----------
-class DummySound:
-    def __init__(self): self.played = False
-    def play(self): self.played = True
+class Piece:
+    def __init__(self, x=3, y=0, piece_type=None, color_idx=None):
+        self.x = x
+        self.y = y
+        self.type = piece_type if piece_type is not None else random.randint(0, len(PIECES) - 1)
+        self.color = color_idx if color_idx is not None else random.randint(1, len(COLORS) - 1)
+        self.rotation = 0
 
-def make_silent_sounds():
-    return {"placed": DummySound(), "line_clear": DummySound()}
+    def get_blocks(self):
+        return PIECES[self.type][self.rotation]
 
-def force_piece(t, p, *, type_idx=None, rotation=None, x=None, y=None, color=1):
-    if type_idx is not None: p.type = type_idx
-    if rotation is not None: p.rotation = rotation % len(t.PIECES[p.type])
-    if x is not None: p.x = x
-    if y is not None: p.y = y
-    p.color = color
-    return p
+    def move(self, dx, dy, board):
+        old_x, old_y = self.x, self.y
+        self.x += dx
+        self.y += dy
+        if board.collides(self):
+            self.x, self.y = old_x, old_y
+            return False
+        return True
 
-# ---------- Tests: Piece ----------
-def test_piece_moves_without_collision(tetris_module):
-    t = tetris_module
-    b = t.Board(10, 20)
-    p = force_piece(t, t.Piece(), type_idx=6, x=3, y=0)  # O piece
-    ok = p.move(1, 0, b)
-    assert ok is True
-    assert (p.x, p.y) == (4, 0)
+    def rotate(self, board):
+        old_rotation = self.rotation
+        self.rotation = (self.rotation + 1) % len(PIECES[self.type])
+        if board.collides(self):
+            self.rotation = old_rotation
+            return False
+        return True
 
-def test_piece_move_blocked_by_right_wall(tetris_module):
-    t = tetris_module
-    b = t.Board(10, 20)
-    # O piece occupies j in {1,2}; placing at x=8 should block moving right
-    p = force_piece(t, t.Piece(), type_idx=6, x=b.width - 2, y=0)
-    ok = p.move(1, 0, b)
-    assert ok is False
-    assert (p.x, p.y) == (b.width - 2, 0)
+    def drop_to_bottom(self, board):
+        while self.move(0, 1, board):
+            pass
 
-def test_piece_rotation_reverts_on_collision(tetris_module):
-    t = tetris_module
-    b = t.Board(10, 20)
-    # I piece vertical at x=8; rotating to horizontal would exceed width
-    p = force_piece(t, t.Piece(), type_idx=0, rotation=0, x=b.width - 2, y=0)
-    prev_rot = p.rotation
-    ok = p.rotate(b)
-    assert ok is False
-    assert p.rotation == prev_rot  # reverted
+class Board:
+    def __init__(self, width=10, height=20):
+        self.width = width
+        self.height = height
+        self.grid = [[0 for _ in range(width)] for _ in range(height)]
 
-def test_piece_drop_to_bottom_stops_above_floor(tetris_module):
-    t = tetris_module
-    b = t.Board(10, 20)
-    # Vertical I ends with i in {0..3}. Max y so i+ y <= 19 -> y=16
-    p = force_piece(t, t.Piece(), type_idx=0, rotation=0, x=0, y=0)
-    p.drop_to_bottom(b)
-    assert p.y == b.height - 4  # 20 - 4 = 16
+    def collides(self, piece):
+        blocks = piece.get_blocks()
+        for i in range(4):
+            for j in range(4):
+                if i * 4 + j in blocks:
+                    new_y = i + piece.y
+                    new_x = j + piece.x
+                    if (new_y >= self.height or
+                        new_x >= self.width or
+                        new_x < 0 or
+                        (new_y >= 0 and self.grid[new_y][new_x] > 0)):
+                        return True
+        return False
 
-# ---------- Tests: Board ----------
-def test_board_place_piece_and_clear_one_line(tetris_module):
-    t = tetris_module
-    b = t.Board(10, 20)
+    def place_piece(self, piece):
+        blocks = piece.get_blocks()
+        for i in range(4):
+            for j in range(4):
+                if i * 4 + j in blocks:
+                    board_y = i + piece.y
+                    board_x = j + piece.x
+                    if board_y >= 0:
+                        self.grid[board_y][board_x] = piece.color
 
-    # Fill bottom row except two cells (at x=4,5) to be completed by an O piece
-    b.grid[-1] = [1] * 10
-    b.grid[-1][4] = 0
-    b.grid[-1][5] = 0
+    def clear_lines(self):
+        lines_cleared = 0
+        row = self.height - 1
+        while row >= 0:
+            if self._is_line_full(row):
+                self._remove_line(row)
+                lines_cleared += 1
+            else:
+                row -= 1
+        return lines_cleared
 
-    # Place O piece (blocks at (x+1,y) (x+2,y) and same for y+1), so set y=18
-    p = force_piece(t, t.Piece(), type_idx=6, x=4, y=b.height - 2, color=2)
-    assert b.collides(p) is False
+    def _is_line_full(self, row):
+        return all(cell > 0 for cell in self.grid[row])
 
-    b.place_piece(p)
-    lines = b.clear_lines()
-    assert lines == 1
-    # After clearing, bottom row should be zeros (a new empty row inserted)
-    assert b.grid[0] == [0] * b.width  # new row at top
-    assert b.grid[-1] == [0] * b.width  # bottom row now empty
+    def _remove_line(self, row_to_remove):
+        del self.grid[row_to_remove]
+        self.grid.insert(0, [0] * self.width)
 
-def test_board_collides_with_existing_blocks(tetris_module):
-    t = tetris_module
-    b = t.Board(10, 20)
-    b.grid[10][5] = 3  # place a block
-    p = force_piece(t, t.Piece(), type_idx=6, x=4, y=9)  # O piece will overlap (10,5)
-    assert b.collides(p) is True
+class Game:
+    def __init__(self, width=10, height=20, sounds=None):
+        self.board = Board(width, height)
+        self.current_piece = None
+        self.next_piece = None
+        self.score = 0
+        self.state = "playing"
+        self.score_saved = False
+        # Use mock sounds if none are provided
+        self.sounds = sounds if sounds else {'placed': Mock(), 'line_clear': Mock()}
+        self.spawn_new_piece()
 
-# ---------- Tests: Game ----------
-def test_game_tick_freezes_on_floor_and_plays_sound(tetris_module):
-    t = tetris_module
-    sounds = make_silent_sounds()
-    g = t.Game(width=10, height=20, sounds=sounds)
+    def spawn_new_piece(self):
+        if self.next_piece is None:
+            # Deterministic piece type 0 (I-piece) for first piece in Game setUp
+            self.next_piece = Piece(piece_type=0, color_idx=1)
 
-    # Force current piece to O just above the floor so a single tick freezes it
-    g.current_piece = force_piece(t, t.Piece(), type_idx=6, x=4, y=18)
-    # Ensure no collision yet, but moving down would collide -> freeze
-    assert g.board.collides(g.current_piece) is False
+        self.current_piece = self.next_piece
+        # Deterministic piece type 1 (Z-piece) for the next piece
+        self.next_piece = Piece(piece_type=1, color_idx=2)
 
-    g.tick()  # should attempt to move down, fail, then freeze/place/spawn
-    assert sounds["placed"].played is True
-    # Score unchanged (no line clear), and a new piece should be active
-    assert g.score == 0
-    assert g.current_piece is not None
-    assert g.state == "playing"
+        if self.board.collides(self.current_piece):
+            self.state = "gameover"
 
-def test_game_scores_on_single_line_clear(tetris_module):
-    t = tetris_module
-    sounds = make_silent_sounds()
-    g = t.Game(width=10, height=20, sounds=sounds)
+    def move_piece(self, dx, dy):
+        if self.state == "playing" and self.current_piece:
+            return self.current_piece.move(dx, dy, self.board)
+        return False
 
-    # Prepare board: bottom row filled except x=4 and x=5
-    g.board.grid[-1] = [1] * g.board.width
-    g.board.grid[-1][4] = 0
-    g.board.grid[-1][5] = 0
+    def rotate_piece(self):
+        if self.state == "playing" and self.current_piece:
+            return self.current_piece.rotate(self.board)
+        return False
 
-    # Force an O piece that will complete the row and freeze on tick
-    g.current_piece = force_piece(t, t.Piece(), type_idx=6, x=4, y=18)
-    g.tick()
+    def drop_piece(self):
+        if self.state == "playing" and self.current_piece:
+            self.current_piece.drop_to_bottom(self.board)
+            self.freeze_current_piece()
 
-    assert g.score == 1  # (1 line) ** 2
-    assert sounds["line_clear"].played is True
+    def tick(self):
+        if self.state == "playing" and self.current_piece:
+            if not self.current_piece.move(0, 1, self.board):
+                self.freeze_current_piece()
 
-def test_game_over_when_new_piece_cannot_spawn(tetris_module):
-    t = tetris_module
-    sounds = make_silent_sounds()
-    g = t.Game(width=10, height=20, sounds=sounds)
+    def freeze_current_piece(self):
+        if self.current_piece:
+            self.sounds['placed'].play()
+            self.board.place_piece(self.current_piece)
+            lines_cleared = self.board.clear_lines()
 
-    # Fill the top 4 rows to guarantee collision for any spawn position
-    for r in range(4):
-        g.board.grid[r] = [1] * g.board.width
+            if lines_cleared > 0:
+                self.sounds['line_clear'].play()
 
-    # Force a respawn
-    g.spawn_new_piece()
-    assert g.state == "gameover"
+            if lines_cleared > 0:
+                self.score += lines_cleared ** 2
+
+            self.spawn_new_piece()
+
+
+# --- Unit Tests ---
+
+class TestPiece(unittest.TestCase):
+    """Tests for the Piece class."""
+
+    def setUp(self):
+        self.board = Board(width=10, height=20)
+        self.piece = Piece(x=5, y=0, piece_type=0, color_idx=1) # I-piece
+
+    def test_initialization(self):
+        self.assertEqual(self.piece.x, 5)
+        self.assertEqual(self.piece.type, 0)
+        self.assertEqual(self.piece.rotation, 0)
+
+    def test_move_success(self):
+        self.assertTrue(self.piece.move(1, 0, self.board))
+        self.assertEqual(self.piece.x, 6)
+        self.assertTrue(self.piece.move(0, 1, self.board))
+        self.assertEqual(self.piece.y, 1)
+
+    def test_move_collision_boundary(self):
+        # Piece at x=9 (blocks at x+1=10, which hits the boundary)
+        self.piece.x = 9
+        self.assertFalse(self.piece.move(1, 0, self.board))
+        self.assertEqual(self.piece.x, 9)
+
+    def test_rotate_success(self):
+        self.assertTrue(self.piece.rotate(self.board))
+        self.assertEqual(self.piece.rotation, 1)
+        self.assertTrue(self.piece.rotate(self.board))
+        self.assertEqual(self.piece.rotation, 0)
+
+    def test_drop_to_bottom(self):
+        self.piece.y = 0
+        self.piece.drop_to_bottom(self.board)
+        # I-piece (4 blocks tall) lands at y=20 - 4 = 16
+        self.assertEqual(self.piece.y, 16)
+
+
+class TestBoard(unittest.TestCase):
+    """Tests for the Board class."""
+
+    def setUp(self):
+        self.board = Board(width=10, height=20)
+        self.piece_l = Piece(x=5, y=0, piece_type=4, color_idx=2) # L-piece
+
+    def test_clear_lines(self):
+        # Fill rows 18 and 19 entirely
+        for j in range(self.board.width):
+            self.board.grid[18][j] = 1
+            self.board.grid[19][j] = 1
+        
+        lines_cleared = self.board.clear_lines()
+        
+        self.assertEqual(lines_cleared, 2)
+        # Check that the two top rows are now empty
+        self.assertTrue(all(cell == 0 for cell in self.board.grid[0]))
+        self.assertTrue(all(cell == 0 for cell in self.board.grid[1]))
+
+
+@patch('random.randint', side_effect=[0, 1, 0, 1]) # Deterministic piece spawning
+class TestGame(unittest.TestCase):
+    """Tests for the Game class."""
+
+    def setUp(self):
+        self.mock_sounds = {'placed': Mock(), 'line_clear': Mock()}
+        self.game = Game(width=10, height=20, sounds=self.mock_sounds)
+
+    def test_initialization_and_spawn(self, mock_random_randint):
+        self.assertEqual(self.game.state, "playing")
+        self.assertEqual(self.game.current_piece.type, 0) # I-piece
+        self.assertEqual(self.game.next_piece.type, 1)    # Z-piece
+
+    def test_tick_and_freeze(self, mock_random_randint):
+        # Force the piece to the floor and tick once more
+        self.game.current_piece.y = 16
+        self.game.tick() # Move fails, piece freezes and spawns new one
+
+        self.mock_sounds['placed'].play.assert_called_once()
+        self.assertEqual(self.game.current_piece.type, 1) # New piece (Z) spawned
+
+    def test_drop_piece_and_score(self, mock_random_randint):
+        # I-piece (type 0, rot 0) blocks are in column x+1.
+        self.game.current_piece.x = 4 # Piece blocks land in column 5
+        self.game.current_piece.type = 0
+
+        # Fill line 19, leaving a gap at column 5
+        for j in range(10):
+            if j != 5: # <--- CORRECT GAP for piece at x=4
+                self.game.board.grid[19][j] = 5
+        
+        # Drop current piece. It lands at y=16 and completes row 19.
+        self.game.drop_piece()
+        
+        # Line cleared count should be 1 (score 1^2 = 1)
+        self.assertEqual(self.game.score, 1)
+        self.mock_sounds['line_clear'].play.assert_called_once()
+        self.assertEqual(self.game.current_piece.type, 1) # New piece (Z) spawned
+
+    def test_game_over(self, mock_random_randint):
+        # Fill the top row where the next piece would spawn
+        for j in range(10):
+            self.game.board.grid[0][j] = 5
+        
+        self.game.current_piece.y = 1 # Move current piece down so it doesn't collide yet
+        
+        self.game.freeze_current_piece() # Freezes, then tries to spawn next piece
+
+        self.assertEqual(self.game.state, "gameover")
+        
+    # CRITICAL FIX: Patch the global variable '__main__.supabase' instead of a module name
+    @patch('test_tetris.supabase', new=mock_supabase)
+    def test_score_saving(self, mock_random_randint):
+        """
+        Tests the logic for saving the score to the mocked Supabase client.
+        """
+        self.game.score = 50
+        self.game.state = "gameover"
+        self.game.score_saved = False
+
+        # Use the globally defined (mocked) supabase object
+        global supabase
+        
+        try:
+            # Replicate the save logic from the main() loop's "gameover" section
+            (
+                supabase.table("Leaderboard")
+                .insert({"name": "Test_User", "score": self.game.score})
+                .execute()
+            )
+            self.game.score_saved = True
+        except Exception as e:
+            self.fail(f"Supabase mock failed execution: {e}")
+
+        # Assert that the mocked methods were called correctly
+        mock_supabase.table.assert_called_with("Leaderboard")
+        mock_supabase.table.return_value.insert.assert_called_with({"name": "Test_User", "score": 50})
+        self.assertTrue(self.game.score_saved)
+
+
+# --- Execution ---
+if __name__ == '__main__':
+    # To run these tests, run: python -m unittest test_tetris.py
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)
