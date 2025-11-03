@@ -159,7 +159,7 @@ class Game:
 
     def spawn_new_piece(self):
         """Create a new piece at the top"""
-        if self.next_piece is  None:
+        if self.next_piece is None:
             self.next_piece = Piece()
 
         self.current_piece = self.next_piece
@@ -248,6 +248,38 @@ def draw_piece(screen, piece, start_x, start_y, block_size):
                                [x, y, block_size - 2, block_size - 2])
 
 
+def get_leaderboard():
+    """Fetch top 5 scores from the leaderboard"""
+    try:
+        response = (
+            supabase.table("Leaderboard")
+            .select("name, score")
+            .order("score", desc=True)
+            .limit(5)
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        print(f"Error fetching leaderboard: {e}")
+        return []
+
+
+def draw_leaderboard(screen, leaderboard_data, x, y):
+    """Draw the leaderboard on screen"""
+    font_title = pygame.font.SysFont('Calibri', 20, True, False)
+    font_entry = pygame.font.SysFont('Calibri', 16, False, False)
+    
+    # Draw title
+    title_text = font_title.render("Leaderboard:", True, BLACK)
+    screen.blit(title_text, [x, y])
+    
+    # Draw entries
+    for i, entry in enumerate(leaderboard_data):
+        entry_y = y + 25 + (i * 20)
+        entry_text = font_entry.render(f"{i+1}. {entry['name']}: {entry['score']}", True, BLACK)
+        screen.blit(entry_text, [x, entry_y])
+
+
 def main():
     # Initialize pygame
     pygame.mixer.pre_init()
@@ -263,7 +295,7 @@ def main():
 
     # Load sound effects early
     sounds = {
-        'placed': pygame.mixer.Sound('./assets/bloop-short.mp3'),
+        'placed': pygame.mixer.Sound('./assets/bloop-short.MP3'),
         'line_clear': pygame.mixer.Sound('./assets/debris-break.mp3'),
     }
     
@@ -278,6 +310,9 @@ def main():
     counter = 0
     pressing_down = False
     done = False
+    
+    # Fetch leaderboard at start
+    leaderboard_data = get_leaderboard()
     
     while not done:
         counter += 1
@@ -329,6 +364,9 @@ def main():
         score_text = font.render(f"Score: {game.score}", True, BLACK)
         screen.blit(score_text, [10, 10])
         
+        # Draw leaderboard
+        draw_leaderboard(screen, leaderboard_data, 350, 200)
+        
         # Draw game over screen
         if game.state == "gameover":
             # Only save score once when game ends
@@ -342,6 +380,8 @@ def main():
                     )
                     game.score_saved = True
                     print(f"Score {game.score} saved to database!")
+                    # Refresh leaderboard after saving new score
+                    leaderboard_data = get_leaderboard()
                 except Exception as e:
                     print(f"Error saving score: {e}")
 
