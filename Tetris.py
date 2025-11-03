@@ -307,7 +307,11 @@ def main():
                     pressing_down = True
                 elif event.key == pygame.K_q and game.state == "gameover":
                     done = True
-            
+                elif event.key == pygame.K_r and game.state == "gameover":
+                    game = Game(sounds=sounds)
+                    counter = 0
+                    pressing_down = False
+                    done = False
             if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
                 pressing_down = False
         
@@ -347,10 +351,13 @@ def main():
 
 
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
-            game_over_text = font_large.render("Game Over", True, (255, 125, 0))
-            quit_text = font_large.render("Press Q to Quit", True, (255, 215, 0))
+            font_medium = pygame.font.SysFont('Calibri', 40, True, False)
+            game_over_text = font_large.render("Game Over", True, (255, 0, 0))
+            quit_text = font_medium.render("Press Q to Quit", True, (255, 215, 0))
+            replay_text = font_large.render("Press R to Replay", True, (0, 0, 255))
             screen.blit(game_over_text, [20, 200])
             screen.blit(quit_text, [25, 265])
+            screen.blit(replay_text, [25, 330])
         
         pygame.display.flip()
         clock.tick(fps)
