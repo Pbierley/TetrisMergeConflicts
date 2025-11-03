@@ -152,8 +152,9 @@ class Game:
         self.current_piece = None
         self.next_piece = None
         self.score = 0
-        self.state = "playing"  # "playing" or "gameover"
+        self.state = "playing"  # "playing", "gameover", or "entering_name"
         self.score_saved = False  # Track if score has been saved to database
+        self.player_name = ""  # Store the player's name input
         self.spawn_new_piece()
         self.sounds = sounds
 
@@ -167,7 +168,7 @@ class Game:
         
         # Check if game is over (can't place new piece)
         if self.board.collides(self.current_piece):
-            self.state = "gameover"
+            self.state = "entering_name"
     
     def move_piece(self, dx, dy):
         """Move the current piece"""
@@ -280,6 +281,62 @@ def draw_leaderboard(screen, leaderboard_data, x, y):
         screen.blit(entry_text, [x, entry_y])
 
 
+def save_score_to_database(name, score):
+    """Save the player's score to the database"""
+    try:
+        response = (
+            supabase.table("Leaderboard")
+            .insert({"name": name, "score": score})
+            .execute()
+        )
+        print(f"Score {score} for player '{name}' saved to database!")
+        return True
+    except Exception as e:
+        print(f"Error saving score: {e}")
+        return False
+
+
+def draw_name_input_screen(screen, game):
+    """Draw the name input screen when game is over"""
+    # Semi-transparent overlay
+    overlay = pygame.Surface(WINDOW_SIZE)
+    overlay.set_alpha(128)
+    overlay.fill(BLACK)
+    screen.blit(overlay, (0, 0))
+    
+    font_large = pygame.font.SysFont('Calibri', 48, True, False)
+    font_medium = pygame.font.SysFont('Calibri', 32, True, False)
+    font_small = pygame.font.SysFont('Calibri', 24, False, False)
+    
+    # Game Over text
+    game_over_text = font_large.render("Game Over!", True, WHITE)
+    screen.blit(game_over_text, [150, 100])
+    
+    # Score text
+    score_text = font_medium.render(f"Your Score: {game.score}", True, WHITE)
+    screen.blit(score_text, [180, 160])
+    
+    # Name input prompt
+    prompt_text = font_medium.render("Enter your name:", True, WHITE)
+    screen.blit(prompt_text, [170, 220])
+    
+    # Name input box
+    input_box = pygame.Rect(150, 270, 300, 40)
+    pygame.draw.rect(screen, WHITE, input_box)
+    pygame.draw.rect(screen, BLACK, input_box, 2)
+    
+    # Display current name input
+    name_text = font_medium.render(game.player_name, True, BLACK)
+    screen.blit(name_text, [input_box.x + 5, input_box.y + 5])
+    
+    # Instructions
+    instruction_text = font_small.render("Press ENTER to save score", True, WHITE)
+    screen.blit(instruction_text, [180, 330])
+    
+    instruction_text2 = font_small.render("Press ESC to quit without saving", True, WHITE)
+    screen.blit(instruction_text2, [155, 360])
+
+
 def main():
     # Initialize pygame
     pygame.mixer.pre_init()
@@ -330,34 +387,62 @@ def main():
                 done = True
                 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    game.rotate_piece()
-                elif event.key == pygame.K_LEFT:
-                    game.move_piece(-1, 0)
-                elif event.key == pygame.K_RIGHT:
-                    game.move_piece(1, 0)
-                elif event.key == pygame.K_SPACE:
-                    game.drop_piece()
-                elif event.key == pygame.K_DOWN:
-                    pressing_down = True
-                elif event.key == pygame.K_q and game.state == "gameover":
-                    done = True
+                if game.state == "playing":
+                    if event.key == pygame.K_UP:
+                        game.rotate_piece()
+                    elif event.key == pygame.K_LEFT:
+                        game.move_piece(-1, 0)
+                    elif event.key == pygame.K_RIGHT:
+                        game.move_piece(1, 0)
+                    elif event.key == pygame.K_SPACE:
+                        game.drop_piece()
+                    elif event.key == pygame.K_DOWN:
+                        pressing_down = True
+                
+                elif game.state == "entering_name":
+                    if event.key == pygame.K_RETURN:
+                        # Save score if name is entered
+                        if game.player_name.strip():
+                            if save_score_to_database(game.player_name.strip(), game.score):
+                                leaderboard_data = get_leaderboard()  # Refresh leaderboard
+                                game.score_saved = True
+                            game.state = "gameover"
+                        else:
+                            # Don't allow empty names
+                            pass
+                    elif event.key == pygame.K_ESCAPE:
+                        # Skip saving and go to game over screen
+                        game.state = "gameover"
+                    elif event.key == pygame.K_BACKSPACE:
+                        # Remove last character
+                        game.player_name = game.player_name[:-1]
+                    else:
+                        # Add character to name (limit to reasonable length)
+                        if len(game.player_name) < 20:
+                            if event.unicode.isprintable():
+                                game.player_name += event.unicode
+                
+                elif game.state == "gameover":
+                    if event.key == pygame.K_q:
+                        done = True
             
             if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
                 pressing_down = False
         
         # Draw everything
         draw_board(screen, game.board, start_x, start_y, block_size)
-        draw_piece(screen, game.current_piece, start_x, start_y, block_size)
         
-        # Box to show the next piece
-        preview_x, preview_y = 350, 100
-        draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
+        if game.state == "playing":
+            draw_piece(screen, game.current_piece, start_x, start_y, block_size)
+            
+            # Box to show the next piece
+            preview_x, preview_y = 350, 100
+            draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
 
-        # Label for the next piece
-        font = pygame.font.SysFont('Calibri', 20, True, False)
-        next_text = font.render("Next Piece:", True, BLACK)
-        screen.blit(next_text, [preview_x - 20, preview_y - 30])
+            # Label for the next piece
+            font = pygame.font.SysFont('Calibri', 20, True, False)
+            next_text = font.render("Next Piece:", True, BLACK)
+            screen.blit(next_text, [preview_x - 20, preview_y - 30])
 
         # Draw score
         font = pygame.font.SysFont('Calibri', 25, True, False)
@@ -367,25 +452,12 @@ def main():
         # Draw leaderboard
         draw_leaderboard(screen, leaderboard_data, 350, 200)
         
+        # Draw name input screen
+        if game.state == "entering_name":
+            draw_name_input_screen(screen, game)
+        
         # Draw game over screen
-        if game.state == "gameover":
-            # Only save score once when game ends
-            if not game.score_saved:
-                try:
-                    # Update leaderboard in Supabase
-                    response = (
-                        supabase.table("Leaderboard")
-                        .insert({"name": "Test_User", "score": game.score})
-                        .execute()
-                    )
-                    game.score_saved = True
-                    print(f"Score {game.score} saved to database!")
-                    # Refresh leaderboard after saving new score
-                    leaderboard_data = get_leaderboard()
-                except Exception as e:
-                    print(f"Error saving score: {e}")
-
-
+        elif game.state == "gameover":
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
             game_over_text = font_large.render("Game Over", True, (255, 125, 0))
             quit_text = font_large.render("Press Q to Quit", True, (255, 215, 0))
