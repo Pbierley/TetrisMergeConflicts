@@ -1,6 +1,7 @@
 import pygame
 import random
 from supabase import create_client, Client
+from pathlib import Path
 
 
 SUPABASE_URL="https://ddafhennccnnqlzdaxer.supabase.co"
@@ -11,12 +12,13 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Constants
 COLORS = (
     (0, 0, 0),        # Black (empty)
-    (120, 37, 179),   # Purple
-    (100, 179, 179),  # Cyan
-    (80, 34, 22),     # Brown
-    (80, 134, 22),    # Green
-    (180, 34, 22),    # Red
-    (180, 34, 122),   # Pink
+    (0, 240, 240),     # Cyan
+    (240, 240, 0),     # Yellow
+    (128, 0, 128),     # Purple
+    (0, 240, 0),       # Green
+    (240, 0, 0),       # Red
+    (0, 0, 240),       # Blue
+    (255, 127, 0)     # Orange
 )
 
 BLACK = (0, 0, 0)
@@ -32,6 +34,31 @@ PIECES = [
     [[1, 4, 5, 6], [1, 4, 5, 9], [4, 5, 6, 9], [1, 5, 6, 9]], # T
     [[1, 2, 5, 6]]  # O
 ]
+
+THEMES = {
+    "Classic": {
+        "background": (121, 121, 121),
+        "board": (0, 0, 0),
+        "next": BLACK,
+        "outline": (0, 242, 242),
+        "text": BLACK
+    },
+    "Starry": {
+        "background": BLACK,
+        "board": (31, 31, 88),
+        "next": (89, 79, 126),
+        "outline": (143, 128, 179),
+        "text": (133, 120, 158)
+    },
+    "Dark": {
+        "background": (20, 20, 20),
+        "board": BLACK,
+        "next": BLACK,
+        "outline": (60, 60, 60),
+        "text": (255, 255, 255)
+    }
+}
+
 
 
 WINDOW_SIZE = (600, 500)
@@ -147,7 +174,7 @@ class Board:
 class Game:
     """Manages the game state, score, and piece spawning"""
 
-    def __init__(self, width=10, height=20, sounds=None):
+    def __init__(self, width=10, height=20, sounds=None, theme_name="Dark"):
         self.board = Board(width, height)
         self.current_piece = None
         self.next_piece = None
@@ -157,6 +184,12 @@ class Game:
         self.player_name = ""  # Store the player's name input
         self.spawn_new_piece()
         self.sounds = sounds
+        self.set_theme(theme_name)
+    
+    def set_theme(self, theme_name):
+        """Set theme for the game"""
+        self.theme_name = theme_name
+        self.theme = THEMES[theme_name]
 
     def spawn_new_piece(self):
         """Create a new piece at the top"""
@@ -214,18 +247,47 @@ class Game:
             
             self.spawn_new_piece()
 
-def draw_board(screen, board, start_x, start_y, block_size):
+def draw_board(screen, board, start_x, start_y, preview_x, preview_y, block_size, theme):
     """Draw the game board"""
-    screen.fill(WHITE)
+    screen.fill(theme["background"])
+
+    # Draw box for preview piece
+    preview_rect = pygame.Rect(
+        preview_x,
+        preview_y - 8,
+        200, 100
+    )
+    pygame.draw.rect(screen, theme["next"], preview_rect)
+    # Label for the next piece
+    font = pygame.font.SysFont('Calibri', 20, True, False)
+    next_text = font.render("Next Piece:", True, theme["text"])
+    screen.blit(next_text, [preview_x - 20, preview_y - 30])
     
+    # Draw the board background
+    playfield_rect = pygame.Rect(
+        start_x, 
+        start_y, 
+        board.width * block_size, 
+        board.height * block_size
+    )
+    pygame.draw.rect(screen, theme["board"], playfield_rect)
+
+    # Draw the board outline
+    border_rect = pygame.Rect(
+        start_x - 8, 
+        start_y, 
+        board.width * block_size + 16, 
+        board.height * block_size + 8
+    )
+    pygame.draw.rect(screen, theme["outline"], border_rect, 8)
+
+
+
     for i in range(board.height):
         for j in range(board.width):
             x = start_x + block_size * j
             y = start_y + block_size * i
-            
-            # Draw grid
-            pygame.draw.rect(screen, GRAY, [x, y, block_size, block_size], 1)
-            
+
             # Draw placed pieces
             if board.grid[i][j] > 0:
                 pygame.draw.rect(screen, COLORS[board.grid[i][j]],
@@ -345,19 +407,25 @@ def main():
     pygame.display.set_caption("Tetris")
     clock = pygame.time.Clock()
 
+    # Asset path
+
+    BASE_DIR = Path(__file__).parent
+    ASSETS_DIR = BASE_DIR / "assets"
+
     # Play song
-    pygame.mixer.music.load('./assets/intro-theme.mp3')
+    pygame.mixer.music.load(str(ASSETS_DIR / "intro-theme.mp3"))
     pygame.mixer.music.set_volume(0.3)
     pygame.mixer.music.play(-1)
 
     # Load sound effects early
     sounds = {
-        'placed': pygame.mixer.Sound('./assets/bloop-short.MP3'),
-        'line_clear': pygame.mixer.Sound('./assets/debris-break.mp3'),
+        'placed': pygame.mixer.Sound(str(ASSETS_DIR / "bloop-short.mp3")),
+        'line_clear': pygame.mixer.Sound(str(ASSETS_DIR /"debris-break.mp3")),
     }
     
     # Game settings
     start_x, start_y = 100, 60
+    preview_x, preview_y = 350, 100
     block_size = 20
     fps = 25
     
@@ -387,18 +455,16 @@ def main():
                 done = True
                 
             if event.type == pygame.KEYDOWN:
-                if game.state == "playing":
-                    if event.key == pygame.K_UP:
-                        game.rotate_piece()
-                    elif event.key == pygame.K_LEFT:
-                        game.move_piece(-1, 0)
-                    elif event.key == pygame.K_RIGHT:
-                        game.move_piece(1, 0)
-                    elif event.key == pygame.K_SPACE:
-                        game.drop_piece()
-                    elif event.key == pygame.K_DOWN:
-                        pressing_down = True
-                
+                if event.key == pygame.K_UP:
+                    game.rotate_piece()
+                elif event.key == pygame.K_LEFT:
+                    game.move_piece(-1, 0)
+                elif event.key == pygame.K_RIGHT:
+                    game.move_piece(1, 0)
+                elif event.key == pygame.K_SPACE:
+                    game.drop_piece()
+                elif event.key == pygame.K_DOWN:
+                    pressing_down = True
                 elif game.state == "entering_name":
                     if event.key == pygame.K_RETURN:
                         # Save score if name is entered
@@ -421,32 +487,32 @@ def main():
                         if len(game.player_name) < 20:
                             if event.unicode.isprintable():
                                 game.player_name += event.unicode
-                
-                elif game.state == "gameover":
-                    if event.key == pygame.K_q:
-                        done = True
-            
+                elif event.key == pygame.K_1:
+                    game.set_theme("Classic")
+                elif event.key == pygame.K_2:
+                    game.set_theme("Starry")
+                elif event.key == pygame.K_3:
+                    game.set_theme("Dark")
+                elif event.key == pygame.K_q and game.state == "gameover":
+                    done = True
+                elif event.key == pygame.K_r and game.state == "gameover":
+                    game = Game(sounds=sounds)
+                    counter = 0
+                    pressing_down = False
+                    done = False
             if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
                 pressing_down = False
         
         # Draw everything
-        draw_board(screen, game.board, start_x, start_y, block_size)
+        draw_board(screen, game.board, start_x, start_y, preview_x, preview_y, block_size, game.theme)
+        draw_piece(screen, game.current_piece, start_x, start_y, block_size)
         
-        if game.state == "playing":
-            draw_piece(screen, game.current_piece, start_x, start_y, block_size)
-            
-            # Box to show the next piece
-            preview_x, preview_y = 350, 100
-            draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
-
-            # Label for the next piece
-            font = pygame.font.SysFont('Calibri', 20, True, False)
-            next_text = font.render("Next Piece:", True, BLACK)
-            screen.blit(next_text, [preview_x - 20, preview_y - 30])
+        # Place preview piece in box
+        draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
 
         # Draw score
         font = pygame.font.SysFont('Calibri', 25, True, False)
-        score_text = font.render(f"Score: {game.score}", True, BLACK)
+        score_text = font.render(f"Score: {game.score}", True, game.theme["text"])
         screen.blit(score_text, [10, 10])
         
         # Draw leaderboard
@@ -459,10 +525,13 @@ def main():
         # Draw game over screen
         elif game.state == "gameover":
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
-            game_over_text = font_large.render("Game Over", True, (255, 125, 0))
-            quit_text = font_large.render("Press Q to Quit", True, (255, 215, 0))
+            font_medium = pygame.font.SysFont('Calibri', 40, True, False)
+            game_over_text = font_large.render("Game Over", True, (255, 0, 0))
+            quit_text = font_medium.render("Press Q to Quit", True, (255, 215, 0))
+            replay_text = font_large.render("Press R to Replay", True, (0, 0, 255))
             screen.blit(game_over_text, [20, 200])
             screen.blit(quit_text, [25, 265])
+            screen.blit(replay_text, [25, 330])
         
         pygame.display.flip()
         clock.tick(fps)
