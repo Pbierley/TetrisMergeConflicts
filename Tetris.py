@@ -509,6 +509,11 @@ def main():
         
         # Place preview piece in box
         draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
+
+        # Draw score
+        font = pygame.font.SysFont('Calibri', 25, True, False)
+        score_text = font.render(f"Score: {game.score}", True, game.theme["text"])
+        screen.blit(score_text, [10, 10])
         
         # Draw leaderboard
         draw_leaderboard(screen, leaderboard_data, 350, 200, game.theme)
