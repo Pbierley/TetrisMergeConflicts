@@ -327,19 +327,19 @@ def get_leaderboard():
         return []
 
 
-def draw_leaderboard(screen, leaderboard_data, x, y):
+def draw_leaderboard(screen, leaderboard_data, x, y, theme):
     """Draw the leaderboard on screen"""
     font_title = pygame.font.SysFont('Calibri', 20, True, False)
     font_entry = pygame.font.SysFont('Calibri', 16, False, False)
     
     # Draw title
-    title_text = font_title.render("Leaderboard:", True, BLACK)
+    title_text = font_title.render("Leaderboard:", True, theme["text"])
     screen.blit(title_text, [x, y])
     
     # Draw entries
     for i, entry in enumerate(leaderboard_data):
         entry_y = y + 25 + (i * 20)
-        entry_text = font_entry.render(f"{i+1}. {entry['name']}: {entry['score']}", True, BLACK)
+        entry_text = font_entry.render(f"{i+1}. {entry['name']}: {entry['score']}", True, theme["text"])
         screen.blit(entry_text, [x, entry_y])
 
 
@@ -509,14 +509,9 @@ def main():
         
         # Place preview piece in box
         draw_piece(screen, game.next_piece, preview_x, preview_y, block_size)
-
-        # Draw score
-        font = pygame.font.SysFont('Calibri', 25, True, False)
-        score_text = font.render(f"Score: {game.score}", True, game.theme["text"])
-        screen.blit(score_text, [10, 10])
         
         # Draw leaderboard
-        draw_leaderboard(screen, leaderboard_data, 350, 200)
+        draw_leaderboard(screen, leaderboard_data, 350, 200, game.theme)
         
         # Draw name input screen
         if game.state == "entering_name":
