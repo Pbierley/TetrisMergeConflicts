@@ -179,8 +179,9 @@ class Game:
         self.current_piece = None
         self.next_piece = None
         self.score = 0
-        self.state = "playing"  # "playing" or "gameover"
+        self.state = "playing"  # "playing", "gameover", or "entering_name"
         self.score_saved = False  # Track if score has been saved to database
+        self.player_name = ""  # Store the player's name input
         self.spawn_new_piece()
         self.sounds = sounds
         self.set_theme(theme_name)
@@ -192,7 +193,7 @@ class Game:
 
     def spawn_new_piece(self):
         """Create a new piece at the top"""
-        if self.next_piece is  None:
+        if self.next_piece is None:
             self.next_piece = Piece()
 
         self.current_piece = self.next_piece
@@ -200,7 +201,7 @@ class Game:
         
         # Check if game is over (can't place new piece)
         if self.board.collides(self.current_piece):
-            self.state = "gameover"
+            self.state = "entering_name"
     
     def move_piece(self, dx, dy):
         """Move the current piece"""
@@ -310,6 +311,94 @@ def draw_piece(screen, piece, start_x, start_y, block_size):
                                [x, y, block_size - 2, block_size - 2])
 
 
+def get_leaderboard():
+    """Fetch top 5 scores from the leaderboard"""
+    try:
+        response = (
+            supabase.table("Leaderboard")
+            .select("name, score")
+            .order("score", desc=True)
+            .limit(5)
+            .execute()
+        )
+        return response.data
+    except Exception as e:
+        print(f"Error fetching leaderboard: {e}")
+        return []
+
+
+def draw_leaderboard(screen, leaderboard_data, x, y):
+    """Draw the leaderboard on screen"""
+    font_title = pygame.font.SysFont('Calibri', 20, True, False)
+    font_entry = pygame.font.SysFont('Calibri', 16, False, False)
+    
+    # Draw title
+    title_text = font_title.render("Leaderboard:", True, BLACK)
+    screen.blit(title_text, [x, y])
+    
+    # Draw entries
+    for i, entry in enumerate(leaderboard_data):
+        entry_y = y + 25 + (i * 20)
+        entry_text = font_entry.render(f"{i+1}. {entry['name']}: {entry['score']}", True, BLACK)
+        screen.blit(entry_text, [x, entry_y])
+
+
+def save_score_to_database(name, score):
+    """Save the player's score to the database"""
+    try:
+        response = (
+            supabase.table("Leaderboard")
+            .insert({"name": name, "score": score})
+            .execute()
+        )
+        print(f"Score {score} for player '{name}' saved to database!")
+        return True
+    except Exception as e:
+        print(f"Error saving score: {e}")
+        return False
+
+
+def draw_name_input_screen(screen, game):
+    """Draw the name input screen when game is over"""
+    # Semi-transparent overlay
+    overlay = pygame.Surface(WINDOW_SIZE)
+    overlay.set_alpha(128)
+    overlay.fill(BLACK)
+    screen.blit(overlay, (0, 0))
+    
+    font_large = pygame.font.SysFont('Calibri', 48, True, False)
+    font_medium = pygame.font.SysFont('Calibri', 32, True, False)
+    font_small = pygame.font.SysFont('Calibri', 24, False, False)
+    
+    # Game Over text
+    game_over_text = font_large.render("Game Over!", True, WHITE)
+    screen.blit(game_over_text, [150, 100])
+    
+    # Score text
+    score_text = font_medium.render(f"Your Score: {game.score}", True, WHITE)
+    screen.blit(score_text, [180, 160])
+    
+    # Name input prompt
+    prompt_text = font_medium.render("Enter your name:", True, WHITE)
+    screen.blit(prompt_text, [170, 220])
+    
+    # Name input box
+    input_box = pygame.Rect(150, 270, 300, 40)
+    pygame.draw.rect(screen, WHITE, input_box)
+    pygame.draw.rect(screen, BLACK, input_box, 2)
+    
+    # Display current name input
+    name_text = font_medium.render(game.player_name, True, BLACK)
+    screen.blit(name_text, [input_box.x + 5, input_box.y + 5])
+    
+    # Instructions
+    instruction_text = font_small.render("Press ENTER to save score", True, WHITE)
+    screen.blit(instruction_text, [180, 330])
+    
+    instruction_text2 = font_small.render("Press ESC to quit without saving", True, WHITE)
+    screen.blit(instruction_text2, [155, 360])
+
+
 def main():
     # Initialize pygame
     pygame.mixer.pre_init()
@@ -347,6 +436,9 @@ def main():
     pressing_down = False
     done = False
     
+    # Fetch leaderboard at start
+    leaderboard_data = get_leaderboard()
+    
     while not done:
         counter += 1
         if counter > 100000:
@@ -373,6 +465,28 @@ def main():
                     game.drop_piece()
                 elif event.key == pygame.K_DOWN:
                     pressing_down = True
+                elif game.state == "entering_name":
+                    if event.key == pygame.K_RETURN:
+                        # Save score if name is entered
+                        if game.player_name.strip():
+                            if save_score_to_database(game.player_name.strip(), game.score):
+                                leaderboard_data = get_leaderboard()  # Refresh leaderboard
+                                game.score_saved = True
+                            game.state = "gameover"
+                        else:
+                            # Don't allow empty names
+                            pass
+                    elif event.key == pygame.K_ESCAPE:
+                        # Skip saving and go to game over screen
+                        game.state = "gameover"
+                    elif event.key == pygame.K_BACKSPACE:
+                        # Remove last character
+                        game.player_name = game.player_name[:-1]
+                    else:
+                        # Add character to name (limit to reasonable length)
+                        if len(game.player_name) < 20:
+                            if event.unicode.isprintable():
+                                game.player_name += event.unicode
                 elif event.key == pygame.K_1:
                     game.set_theme("Classic")
                 elif event.key == pygame.K_2:
@@ -401,23 +515,15 @@ def main():
         score_text = font.render(f"Score: {game.score}", True, game.theme["text"])
         screen.blit(score_text, [10, 10])
         
+        # Draw leaderboard
+        draw_leaderboard(screen, leaderboard_data, 350, 200)
+        
+        # Draw name input screen
+        if game.state == "entering_name":
+            draw_name_input_screen(screen, game)
+        
         # Draw game over screen
-        if game.state == "gameover":
-            # Only save score once when game ends
-            if not game.score_saved:
-                try:
-                    # Update leaderboard in Supabase
-                    response = (
-                        supabase.table("Leaderboard")
-                        .insert({"name": "Test_User", "score": game.score})
-                        .execute()
-                    )
-                    game.score_saved = True
-                    print(f"Score {game.score} saved to database!")
-                except Exception as e:
-                    print(f"Error saving score: {e}")
-
-
+        elif game.state == "gameover":
             font_large = pygame.font.SysFont('Calibri', 65, True, False)
             font_medium = pygame.font.SysFont('Calibri', 40, True, False)
             game_over_text = font_large.render("Game Over", True, (255, 0, 0))
