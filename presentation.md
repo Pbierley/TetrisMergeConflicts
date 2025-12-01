@@ -1,323 +1,381 @@
-# Tetris Game Development: Features Overview
+# Tetris Game Development
+## Features & Design Patterns
 
-## Project Summary
-
-This document outlines the key features and improvements implemented during the development of our Tetris game. The project focused on creating a modern, maintainable codebase with enhanced gameplay mechanics and user experience features.
-
----
-
-## 1. Code Refactoring & Architecture Improvement
-
-### Overview
-The codebase underwent significant refactoring to improve clarity, maintainability, and extensibility for future development.
-
-### Key Improvements
-
-**Variable & Function Naming**
-- Replaced unclear variable names with descriptive identifiers
-- Improved code readability by following consistent naming conventions
-- Made the codebase more self-documenting and easier to understand
-
-**Magic Numbers Removal**
-- Extracted hardcoded values into named constants
-- Created dedicated configuration sections for easy adjustment of game parameters
-- Enhanced code maintainability by centralizing value definitions
-
-**Code Organization**
-- Separated concerns into distinct classes: `Piece`, `Board`, `Game`, and `Menu`
-- Removed duplicated logic and consolidated common operations
-- Implemented proper encapsulation for game state management
-- Created reusable functions for drawing and game operations
-
-**Design Patterns**
-- Applied object-oriented principles for cleaner architecture
-- Implemented state management patterns for game flow control
-- Separated UI rendering logic from game logic
+**A Modern Implementation with Professional Architecture**
 
 ---
 
-## 2. Sound Effects & Audio Integration
+## Agenda
 
-### Overview
-Added immersive audio feedback to enhance player engagement and game feel.
-
-### Features Implemented
-
-**Sound Library Integration**
-- Integrated Pygame's mixer module for audio playback
-- Loaded and managed multiple sound effect files efficiently
-
-**Game Audio Events**
-
-| Event | Sound | Purpose |
-|-------|-------|---------|
-| **Piece Placement** | Bloop sound (`bloop-short.mp3`) | Auditory feedback when blocks land |
-| **Line Clear** | Debris break sound (`debris-break.mp3`) | Satisfying feedback for completing lines |
-| **Background Music** | Intro theme (`intro-theme.mp3`) | Looping background ambiance during gameplay |
-
-**Audio Features**
-- Background music loops continuously at reduced volume (0.3x)
-- Sound effects trigger on appropriate game events
-- Audio assets load from a dedicated `assets/` directory
-- Clean audio management prevents overlap and cacophony
+1. Project Overview
+2. Feature Deep Dive (6 Major Features)
+3. Gang of Four Design Patterns (7 Patterns)
+4. Technical Architecture
+5. Demo & Q&A
 
 ---
 
-## 3. Proper Block Movement Mechanics
-
-### Overview
-Implemented robust collision detection and movement validation to ensure precise gameplay mechanics.
-
-### Collision Detection System
-
-**Boundary Checking**
-- Prevents pieces from moving beyond board edges
-- Validates both horizontal and vertical boundary constraints
-- Checks for collisions with previously placed blocks
-
-**Movement Validation**
-- `move()` method attempts movement then validates against collisions
-- Reverts position if collision detected
-- Returns success/failure status for UI feedback
-
-**Piece Types Supported**
-- I-piece (straight line)
-- Z-piece and S-piece (zigzag patterns)
-- J-piece and L-piece (corner pieces)
-- T-piece (T-shaped)
-- O-piece (square)
-
-### Movement Controls
-- Left/Right navigation with boundary checking
-- Downward movement with collision detection
-- Soft drop functionality for controlled descent
-- Hard drop for instant placement
+# Part 1: Project Overview
 
 ---
 
-## 4. Next Block Preview Feature
+## What We Built
 
-### Overview
-Displays the upcoming Tetromino before it enters the playing field, allowing players to plan ahead.
+A **feature-rich Tetris implementation** that combines:
 
-### Implementation Details
+- ✅ Classic gameplay mechanics
+- ✅ Modern software architecture
+- ✅ Cloud persistence
+- ✅ Player customization
+- ✅ Professional code quality
 
-**Visual Design**
-- Dedicated preview box positioned on the game screen
-- Clear label: "Next Piece"
-- Styled border and background for visual distinction
-- Integrated with current theme system
-
-**Functionality**
-- Previews the next piece before it spawns
-- Updates automatically after each piece placement
-- Uses same rendering system as falling pieces
-- Positioned at coordinates (350, 100) for optimal visibility
-
-**User Experience Benefits**
-- Enables strategic planning
-- Reduces surprise and improves skill development
-- Adds anticipation and engagement
-- Helps players adapt to upcoming piece types
+**Tech Stack**: Python 3.12, Pygame 2.6.1, Supabase 2.20.0
 
 ---
 
-## 5. Persistent Leaderboard System
+## Development Philosophy
 
-### Overview
-Implemented a cloud-based leaderboard that persists scores between game sessions using Supabase.
+### Three Core Principles
 
-### Architecture
-
-**Database Integration**
-- Connected to Supabase backend for secure data storage
-- Stores player names and scores in a `Leaderboard` table
-- Uses anonymous public key for client-side access
-
-**Features**
-
-| Feature | Details |
-|---------|---------|
-| **Score Submission** | Players enter names after game over |
-| **Top 5 Display** | Leaderboard shows highest scores in real-time |
-| **Persistent Storage** | Scores saved indefinitely in cloud |
-| **Automatic Refresh** | Leaderboard updates after each new score |
-
-**User Flow**
-1. Game ends and player enters their name
-2. Score automatically submitted to database
-3. Leaderboard fetched and displayed on game screen
-4. Player can view rankings before next game
-
-**Technical Implementation**
-- Uses Supabase PostgREST API for database operations
-- Implements error handling for network failures
-- Graceful fallback if database unavailable
-- Efficient sorting and limiting queries (top 5)
+1. **Clean Code** - Readable, maintainable, extensible
+2. **User Experience** - Responsive, engaging, customizable
+3. **Design Patterns** - Professional architecture using Gang of Four patterns
 
 ---
 
-## 6. Customizable Key Binding System
-
-### Overview
-Allows players to customize game controls according to personal preferences.
-
-### Key Binding Features
-
-**Supported Actions**
-- Move Left (default: LEFT ARROW)
-- Move Right (default: RIGHT ARROW)
-- Move Down (default: DOWN ARROW)
-- Rotate (default: UP ARROW)
-- Hard Drop (default: SPACEBAR)
-
-**Customization System**
-
-**Settings Menu Integration**
-- Access controls from main settings menu
-- Visual display of current key bindings
-- Real-time rebinding interface
-
-**Rebinding Process**
-1. Select control to customize
-2. Prompt displays "Press a key..."
-3. Next key pressed becomes new binding
-4. Press ESC to cancel rebinding
-5. "Reset to Defaults" option available
-
-**Persistence**
-- Keybinds maintained during current session
-- Passed between menu and game states
-- Preserved when returning to menu
-
-**Benefits**
-- Accommodates different play styles
-- Improves accessibility for users with different equipment
-- Supports left-handed players
-- Reduces learning curve for experienced Tetris players
+# Part 2: Feature Deep Dive
 
 ---
 
-## 7. Theme System
+## Feature 1: Code Refactoring
 
-### Overview
-Provides visual variety and player personalization options.
+### The Problem
+- Original code had unclear variable names
+- Magic numbers scattered throughout
+- Duplicated logic
+- Poor separation of concerns
 
-### Available Themes
-
-**Classic Theme**
-- Gray background with cyan outline
-- Traditional Tetris aesthetic
-- Black text for contrast
-
-**Starry Theme**
-- Dark purple board with mystical appearance
-- Violet highlights and outline
-- Atmospheric gaming experience
-
-**Dark Theme** (Default)
-- Minimalist dark gray background
-- Clean black board
-- White text for maximum contrast
-- Modern, professional appearance
-
-### Theme Integration
-- Selectable from settings menu
-- Real-time theme switching during gameplay
-- Affects: background, board, preview box, outline, and text colors
-- Quick toggle keys (1, 2, 3) during gameplay
+### The Solution
+✅ Descriptive naming conventions  
+✅ Named constants for all values  
+✅ Class-based architecture (`Piece`, `Board`, `Game`, `Menu`)  
+✅ Separated UI from game logic  
 
 ---
 
-## 8. Menu System & Game States
+## Code Refactoring: Example
 
-### Overview
-Comprehensive menu interface for navigation and settings management.
-
-### Main Menu
-- Start Game
-- Settings
-- Quit Application
-
-### Settings Menu
-- Theme Selection
-- Control Rebinding
-- Back to Main Menu
-
-### Controls Menu
-- Display current key bindings
-- Rebind individual controls
-- Reset to defaults
-- Navigation with UP/DOWN arrows and ENTER to select
-
-### Game States
-- **Menu State**: Navigation and settings
-- **Playing State**: Active gameplay
-- **Entering Name State**: Score submission prompt
-- **Game Over State**: Results display with replay/quit options
-
----
-
-## Design Patterns (Gang of Four)
-
-### 1. State Pattern
-
-**Implementation**: Used throughout the `Game` and `Menu` classes to manage different application states.
-
-**Usage**
+### Before
 ```python
-# Game states
-game.state = "playing"      # Active gameplay
-game.state = "gameover"     # Game over screen
-game.state = "entering_name" # Name input prompt
-
-# Menu states
-menu.state = "main"         # Main menu
-menu.state = "settings"     # Settings menu
-menu.state = "controls"     # Control rebinding
+if p[0] < 0 or p[0] > 9 or p[1] > 19:
+    return True
 ```
 
-**Benefits**
-- Encapsulates state-specific behavior
-- Simplifies conditional logic
-- Makes state transitions explicit and clear
-- Enables easy addition of new states
+### After
+```python
+if (board_x < 0 or board_x >= self.width or 
+    board_y >= self.height):
+    return True
+```
 
-**Example**: When `game.state == "entering_name"`, different input handling and rendering occurs than when `game.state == "playing"`.
+**Result**: Self-documenting code that's easy to understand and modify
 
 ---
 
-### 2. Strategy Pattern
+## Feature 2: Sound Effects & Audio
 
-**Implementation**: Used with the theme system to encapsulate rendering strategies.
+### Audio Integration
 
-**Usage**
+Immersive audio feedback enhances player engagement
+
+| Event | Sound File | Purpose |
+|-------|-----------|---------|
+| **Piece Lands** | `bloop-short.mp3` | Tactile feedback |
+| **Line Clear** | `debris-break.mp3` | Satisfying reward |
+| **Background** | `intro-theme.mp3` | Ambient atmosphere |
+
+**Technical Details**:
+- Pygame mixer module
+- Background music loops at 0.3x volume
+- Event-driven sound triggering
+- Clean audio management (no overlap)
+
+---
+
+## Feature 3: Proper Block Movement
+
+### Robust Collision Detection System
+
+**Boundary Checking**
+- Prevents movement beyond board edges
+- Validates both horizontal and vertical constraints
+- Checks collisions with placed blocks
+
+**Movement Validation**
+```python
+def move(self, dx, dy, board):
+    old_x, old_y = self.x, self.y
+    self.x += dx
+    self.y += dy
+    
+    if board.collides(self):
+        self.x, self.y = old_x, old_y  # Revert
+        return False
+    return True
+```
+
+---
+
+## Block Movement: Supported Pieces
+
+All 7 standard Tetris pieces with accurate physics:
+
+| Piece | Type | Rotations |
+|-------|------|-----------|
+| I-piece | Straight line | 2 |
+| Z-piece | Zigzag | 2 |
+| S-piece | Reverse zigzag | 2 |
+| J-piece | L-shaped left | 4 |
+| L-piece | L-shaped right | 4 |
+| T-piece | T-shaped | 4 |
+| O-piece | Square | 1 |
+
+**Controls**: Left/Right navigation, soft drop, hard drop, rotation
+
+---
+
+## Feature 4: Next Block Preview
+
+### Strategic Planning Feature
+
+**Visual Design**
+- Dedicated preview box on screen
+- "Next Piece" label
+- Theme-integrated styling
+- Position: (350, 100) for visibility
+
+**Benefits**
+- 🧠 Enables strategic planning
+- 📈 Improves skill development
+- 🎯 Reduces surprise factor
+- ⚡ Adds anticipation
+
+---
+
+## Next Block Preview: Implementation
+
+```python
+def spawn_new_piece(self):
+    if self.next_piece is None:
+        self.next_piece = Piece()  # Initialize first time
+    
+    self.current_piece = self.next_piece
+    self.next_piece = Piece()  # Generate next
+```
+
+**User Experience**: Players can see what's coming and adapt their strategy accordingly
+
+---
+
+## Feature 5: Cloud Leaderboard
+
+### Persistent Score Tracking with Supabase
+
+**Architecture**
+- Cloud-based database (Supabase PostgREST)
+- Stores player names and scores
+- Real-time synchronization
+- Secure anonymous access
+
+**Features**
+- 🏆 Top 5 score display
+- 💾 Permanent cloud storage
+- 🔄 Automatic refresh after games
+- 🎮 Name entry on game over
+
+---
+
+## Leaderboard: Technical Implementation
+
+```python
+# Score submission
+def submit_score(name, score):
+    supabase.table("Leaderboard").insert({
+        "name": name, 
+        "score": score
+    }).execute()
+
+# Fetch top scores
+def get_leaderboard():
+    response = supabase.table("Leaderboard")\
+        .select("*")\
+        .order("score", desc=True)\
+        .limit(5)\
+        .execute()
+    return response.data
+```
+
+**Error Handling**: Graceful fallback if database unavailable
+
+---
+
+## Feature 6: Customizable Key Bindings
+
+### Player Control Personalization
+
+**Rebindable Actions**
+- Move Left (default: ← Arrow)
+- Move Right (default: → Arrow)  
+- Move Down (default: ↓ Arrow)
+- Rotate (default: ↑ Arrow)
+- Hard Drop (default: Space)
+
+**Access**: Settings → Controls menu
+
+---
+
+## Key Bindings: Rebinding Process
+
+### User-Friendly Workflow
+
+1. Select control to customize
+2. Prompt: "Press a key..."
+3. Next key pressed becomes new binding
+4. ESC to cancel
+5. "Reset to Defaults" option available
+
+**Benefits**
+- ♿ Accessibility for different equipment
+- 🎮 Accommodates play styles
+- 👈 Supports left-handed players
+- 🔄 Easy to modify anytime
+
+---
+
+# Part 3: Gang of Four Design Patterns
+
+---
+
+## Why Design Patterns?
+
+### Benefits of Gang of Four Patterns
+
+- ✅ **Proven solutions** to common problems
+- ✅ **Better communication** among developers
+- ✅ **More maintainable** code
+- ✅ **Easier to extend** and modify
+- ✅ **Industry standard** practices
+
+**We implemented 7 patterns in this project**
+
+---
+
+## Pattern 1: State Pattern
+
+### Managing Application States
+
+**Purpose**: Encapsulate state-specific behavior
+
+**Implementation**:
+```python
+# Game states
+game.state = "playing"       # Active gameplay
+game.state = "gameover"      # Results screen
+game.state = "entering_name" # Score submission
+
+# Menu states  
+menu.state = "main"          # Main menu
+menu.state = "settings"      # Settings menu
+menu.state = "controls"      # Control rebinding
+```
+
+**Benefits**: Clear state transitions, encapsulated behavior
+
+---
+
+## State Pattern: Impact
+
+### Before Pattern
+```python
+if playing and not game_over and not entering_name:
+    # gameplay logic
+elif game_over and not entering_name:
+    # game over logic
+elif entering_name:
+    # name input logic
+```
+
+### After Pattern
+```python
+if self.state == "playing":
+    self.handle_gameplay()
+elif self.state == "gameover":
+    self.handle_game_over()
+elif self.state == "entering_name":
+    self.handle_name_input()
+```
+
+**Result**: Much cleaner and easier to extend!
+
+---
+
+## Pattern 2: Strategy Pattern
+
+### Theme System as Strategy
+
+**Purpose**: Encapsulate rendering strategies
+
+**Implementation**:
 ```python
 THEMES = {
-    "Classic": { "background": (121, 121, 121), ... },
-    "Starry":  { "background": BLACK, ... },
-    "Dark":    { "background": (20, 20, 20), ... }
+    "Classic": {
+        "background": (121, 121, 121),
+        "board": (0, 0, 0),
+        "outline": (0, 242, 242),
+        "text": BLACK
+    },
+    "Starry": { ... },
+    "Dark": { ... }
 }
 
-# Strategy selection at runtime
+# Runtime strategy selection
 self.theme = THEMES[theme_name]
 ```
 
-**Benefits**
-- Encapsulates different rendering strategies (themes)
-- Allows runtime strategy switching without code changes
-- Eliminates conditional logic for theme selection
-- Easy to add new themes
+---
 
-**Example**: Instead of `if theme == "Classic": ... elif theme == "Starry": ...`, we store strategy as data structure and apply it uniformly.
+## Strategy Pattern: Benefits
+
+### Eliminates Conditional Logic
+
+**Without Strategy**:
+```python
+if theme == "Classic":
+    background = (121, 121, 121)
+    outline = (0, 242, 242)
+elif theme == "Starry":
+    background = BLACK
+    outline = (143, 128, 179)
+# ... more conditions
+```
+
+**With Strategy**:
+```python
+pygame.draw.rect(screen, self.theme["background"], rect)
+pygame.draw.rect(screen, self.theme["outline"], outline, 2)
+```
+
+**Benefits**: Runtime switching, data-driven design, easy to add themes
 
 ---
 
-### 3. Factory Pattern
+## Pattern 3: Factory Pattern
 
-**Implementation**: Used in piece spawning and creation.
+### Piece Creation
 
-**Usage**
+**Purpose**: Centralize object creation logic
+
+**Implementation**:
 ```python
 class Piece:
     def __init__(self, x=3, y=0):
@@ -327,91 +385,129 @@ class Piece:
 
 class Game:
     def spawn_new_piece(self):
-        if self.next_piece is None:
-            self.next_piece = Piece()  # Factory creates piece
         self.current_piece = self.next_piece
-        self.next_piece = Piece()
+        self.next_piece = Piece()  # Factory creates
 ```
 
-**Benefits**
-- Centralizes piece creation logic
-- Encapsulates randomization and initialization
-- Easy to modify piece creation without affecting game logic
-- Simplifies testing with mock pieces
-
-**Example**: Test cases use `Piece(x=5, y=0, piece_type=0, color_idx=1)` with specific parameters instead of random values.
+**Benefits**: Encapsulated randomization, simplified testing
 
 ---
 
-### 4. Observer Pattern (Implicit)
+## Factory Pattern: Testing Advantage
 
-**Implementation**: Used with the audio system and event-driven architecture.
+### Easy to Override for Tests
 
-**Usage**
 ```python
-# Game "observes" piece placement events
-if not self.current_piece.move(0, 1, self.board):
-    self.freeze_current_piece()  # Triggers event
+# Production: Random pieces
+piece = Piece()  
 
-# Event handler responds to piece freeze
+# Testing: Controlled pieces
+piece = Piece(x=5, y=0)
+piece.type = 0  # Force I-piece
+piece.color = 1  # Force cyan
+```
+
+**Result**: Deterministic unit tests while maintaining random gameplay
+
+---
+
+## Pattern 4: Observer Pattern
+
+### Event-Driven Audio System
+
+**Purpose**: Decouple event sources from observers
+
+**Implementation**:
+```python
 def freeze_current_piece(self):
-    self.sounds['placed'].play()  # Observer notifies audio system
+    # Place piece on board
+    self.board.place_piece(self.current_piece)
+    
+    # Notify observers
+    self.sounds['placed'].play()  # Audio observer 1
+    
     lines_cleared = self.board.clear_lines()
     if lines_cleared > 0:
-        self.sounds['line_clear'].play()  # Another observer notification
+        self.sounds['line_clear'].play()  # Audio observer 2
+        self.score += lines_cleared ** 2
 ```
-
-**Benefits**
-- Decouples game logic from audio system
-- Multiple observers can respond to single event
-- Easy to add new observers (e.g., particle effects, logging)
-- Clean separation of concerns
-
-**Example**: When a piece freezes, multiple systems are notified: sound plays, board updates, score increases.
 
 ---
 
-### 5. Composite Pattern
+## Observer Pattern: Benefits
 
-**Implementation**: Used in the board grid structure and menu hierarchies.
+**Decoupled Architecture**
+- Game logic doesn't know about audio system
+- Easy to add new observers (particle effects, logging, etc.)
+- Multiple observers respond to single event
+- Clean separation of concerns
 
-**Usage**
+**Example**: When piece freezes:
+1. 🔊 Sound plays
+2. 🎨 Board updates
+3. 📊 Score increases
+4. 🎯 Next piece spawns
+
+All without tight coupling!
+
+---
+
+## Pattern 5: Composite Pattern
+
+### Board Grid Structure
+
+**Purpose**: Treat individual and groups uniformly
+
+**Implementation**:
 ```python
-# Board as composite of cells
 class Board:
     def __init__(self, width=10, height=20):
-        self.grid = [[0 for _ in range(width)] for _ in range(height)]
+        # Composite structure: grid of cells
+        self.grid = [[0 for _ in range(width)] 
+                     for _ in range(height)]
     
-    # Composite operations
-    def place_piece(self, piece):  # Places multiple blocks at once
+    def place_piece(self, piece):
+        # Operate on multiple cells as unit
         for i in range(4):
             for j in range(4):
                 if i * 4 + j in blocks:
-                    self.grid[board_y][board_x] = piece.color
-
-# Menu hierarchy
-class Menu:
-    self.main_menu_options = ["Start Game", "Settings", "Quit"]
-    self.settings_menu_options = ["Theme", "Controls", "Back"]
+                    self.grid[y][x] = piece.color
 ```
-
-**Benefits**
-- Treats individual cells and groups uniformly
-- Hierarchical menu structure naturally represented
-- Recursive composition for complex structures
-- Simplifies operations on groups of objects
-
-**Example**: `board.clear_lines()` operates on entire rows as composite units rather than individual cells.
 
 ---
 
-### 6. Template Method Pattern
+## Composite Pattern: Menu Hierarchy
 
-**Implementation**: Used in event handling throughout menu and game systems.
-
-**Usage**
+**Menu as Composite**:
 ```python
-# Template in Menu class
+class Menu:
+    # Menu options are composite structures
+    self.main_menu_options = [
+        "Start Game", 
+        "Settings", 
+        "Quit"
+    ]
+    
+    self.settings_menu_options = [
+        "Theme", 
+        "Controls", 
+        "Back"
+    ]
+```
+
+**Benefits**: Hierarchical structure, uniform operations, recursive composition
+
+---
+
+## Pattern 6: Template Method Pattern
+
+### Consistent Input Handling
+
+**Purpose**: Define operation skeleton, let subclasses implement steps
+
+**Implementation**:
+```python
+# Template method
 def handle_input(self, event):
     if event.type == pygame.KEYDOWN:
         if self.state == "main":
@@ -420,92 +516,94 @@ def handle_input(self, event):
             return self._handle_settings_menu_input(event)
         elif self.state == "controls":
             return self._handle_controls_menu_input(event)
+```
 
-# Each substate has specific implementation
-def _handle_main_menu_input(self, event):  # Template method concrete implementation
+---
+
+## Template Method: Concrete Implementation
+
+```python
+# Concrete implementation for main menu
+def _handle_main_menu_input(self, event):
     if event.key == pygame.K_UP:
         self.selected_option = (self.selected_option - 1) % len(...)
     elif event.key == pygame.K_DOWN:
         self.selected_option = (self.selected_option + 1) % len(...)
     elif event.key == pygame.K_RETURN:
-        # State-specific actions
+        # Execute selected option
 ```
 
-**Benefits**
-- Defines skeleton of operation in base method
-- Subclasses implement specific steps
-- Reduces code duplication across similar operations
-- Ensures consistent structure across states
-
-**Example**: All menu input handling follows same pattern: arrow navigation, Enter selection, Escape cancellation.
+**Benefits**: Reduces duplication, ensures consistency, easy to extend
 
 ---
 
-### 7. Singleton Pattern (Implicit)
+## Pattern 7: Singleton Pattern
 
-**Implementation**: Used with the Supabase client and game board.
+### Single Resource Instance
 
-**Usage**
+**Purpose**: Guarantee single instance of critical resources
+
+**Implementation**:
 ```python
-# Global supabase instance (singleton)
+# Singleton database client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Used throughout application
 response = supabase.table("Leaderboard").select(...).execute()
 
-# Single board instance per game
+# Single board per game
 class Game:
     def __init__(self):
-        self.board = Board(10, 20)  # One board per game session
+        self.board = Board(10, 20)  # One board instance
 ```
 
-**Benefits**
-- Guarantees single instance of critical resources
-- Prevents multiple database connections
-- Centralized access point
-- Thread-safe resource management
-
-**Example**: All leaderboard operations use same Supabase client instance.
+**Benefits**: Prevents duplicate connections, centralized access, thread-safe
 
 ---
 
-## Technical Specifications
-
-### Dependencies
-- **Pygame 2.6.1+**: Graphics, audio, and input handling
-- **Supabase 2.20.0+**: Cloud database for leaderboard persistence
-- **Python 3.12+**: Language runtime
-
-### Project Structure
-```
-Tetris/
-├── Tetris.py              # Main game file
-├── test_tetris.py         # Unit tests
-├── assets/                # Audio files
-│   ├── intro-theme.mp3
-│   ├── bloop-short.mp3
-│   └── debris-break.mp3
-├── pyproject.toml         # Project configuration
-└── README.md              # Quick start guide
-```
-
-### Testing
-- Comprehensive unit tests for Piece and Board classes
-- Collision detection validation
-- Leaderboard functionality testing
-- Mock Supabase integration for safe testing
-
-### Design Pattern Summary
+## Design Patterns Summary
 
 | Pattern | Purpose | Location |
 |---------|---------|----------|
 | **State** | Manage game/menu states | Game, Menu classes |
-| **Strategy** | Theme rendering strategies | THEMES dictionary |
-| **Factory** | Piece creation | Piece.__init__, Game.spawn_new_piece |
-| **Observer** | Event-driven audio system | Sound effects triggering |
-| **Composite** | Board structure & menu hierarchy | Board.grid, Menu options |
-| **Template Method** | Consistent input handling | Menu.handle_input methods |
-| **Singleton** | Single database/board instance | Supabase client, Board instance |
+| **Strategy** | Theme rendering | THEMES dictionary |
+| **Factory** | Piece creation | Piece.__init__ |
+| **Observer** | Event-driven audio | Sound system |
+| **Composite** | Board/menu structure | Grid, menus |
+| **Template Method** | Input handling | Menu methods |
+| **Singleton** | Resource management | Supabase, Board |
+
+---
+
+# Part 4: Technical Architecture
+
+---
+
+## System Architecture
+
+### Class Hierarchy
+
+```
+Tetris Application
+├── Piece
+│   ├── Position (x, y)
+│   ├── Type & Color
+│   ├── Rotation state
+│   └── Methods: move(), rotate(), drop()
+├── Board
+│   ├── Grid (10×20)
+│   ├── Collision detection
+│   └── Line clearing
+├── Game
+│   ├── Board instance
+│   ├── Current & next piece
+│   ├── Score & state
+│   └── Game loop logic
+└── Menu
+    ├── Menu states
+    ├── Theme management
+    └── Key binding config
+```
 
 ---
 
@@ -513,37 +611,353 @@ Tetris/
 
 | Metric | Value |
 |--------|-------|
-| **FPS** | 25 frames per second |
+| **Frame Rate** | 25 FPS |
 | **Window Size** | 600 × 500 pixels |
 | **Board Dimensions** | 10 × 20 cells |
 | **Block Size** | 20 × 20 pixels |
-| **Piece Drop Speed** | 2 moves per FPS cycle |
+| **Drop Speed** | 2 cells per frame cycle |
+
+**Optimization**: Efficient collision detection, minimal redraws
 
 ---
 
-## Future Enhancement Opportunities
+## Project Structure
 
-- Difficulty levels with increasing speed
-- Multiplayer competitive mode
-- Sound volume controls in settings
-- Local high score backup
-- Power-ups and special pieces
-- Combo system with bonus points
-- Achievement/medal system
-- Particle effects for line clears
+```
+TetrisMergeConflicts/
+├── Tetris.py              # Main application (800+ lines)
+├── test_tetris.py         # Comprehensive unit tests
+├── assets/                # Audio resources
+│   ├── intro-theme.mp3
+│   ├── bloop-short.mp3
+│   └── debris-break.mp3
+├── pyproject.toml         # Dependencies (uv)
+├── README.md              # Quick start guide
+└── docs/                  # Hugo documentation site
+    ├── config.toml
+    └── content/
+```
 
 ---
 
-## Conclusion
+## Testing Strategy
 
-The Tetris game now features a polished, user-friendly experience with modern architecture and engaging gameplay mechanics. The combination of intuitive controls, visual feedback, and persistent online leaderboards creates a complete gaming experience that encourages player engagement and replayability.
+### Comprehensive Unit Tests
 
-### Key Achievements
-✅ Clean, maintainable codebase  
-✅ Immersive audio experience  
-✅ Precise game mechanics  
-✅ Strategic gameplay elements  
-✅ Cloud-based persistence  
-✅ Player customization options  
-✅ Professional visual design  
-✅ Robust error handling
+**Coverage**:
+- ✅ Piece movement and rotation
+- ✅ Collision detection
+- ✅ Line clearing algorithm
+- ✅ Board state management
+- ✅ Mock Supabase integration
+
+**Run Tests**:
+```bash
+python -m unittest test_tetris.py
+```
+
+**Result**: High confidence in core game mechanics
+
+---
+
+## Dependencies
+
+### Production Dependencies
+
+```toml
+[project]
+dependencies = [
+    "pygame>=2.6.1",
+    "supabase>=2.20.0"
+]
+requires-python = ">=3.12"
+```
+
+**Why these choices?**
+- **Pygame**: Industry-standard game library
+- **Supabase**: Modern, scalable backend
+- **Python 3.12**: Latest stable features
+
+---
+
+## Database Schema
+
+### Supabase Leaderboard Table
+
+```sql
+CREATE TABLE Leaderboard (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_score ON Leaderboard(score DESC);
+```
+
+**Features**:
+- Auto-incrementing ID
+- Timestamp tracking
+- Indexed for fast queries
+
+---
+
+## Theme System Architecture
+
+### Three Built-in Themes
+
+**Classic Theme**
+- Gray background (121, 121, 121)
+- Cyan outline (0, 242, 242)
+- Traditional Tetris aesthetic
+
+**Starry Theme**
+- Dark background with purple board
+- Violet highlights (143, 128, 179)
+- Mystical appearance
+
+**Dark Theme** (Default)
+- Minimalist dark gray (20, 20, 20)
+- White text for contrast
+- Modern, professional look
+
+---
+
+## Key Binding System
+
+### Flexible Control Scheme
+
+**Default Bindings**:
+```python
+DEFAULT_KEYBINDS = {
+    "move_left": pygame.K_LEFT,
+    "move_right": pygame.K_RIGHT,
+    "move_down": pygame.K_DOWN,
+    "rotate": pygame.K_UP,
+    "hard_drop": pygame.K_SPACE
+}
+```
+
+**Features**:
+- Runtime rebinding
+- Session persistence
+- Reset to defaults
+- Validation against conflicts
+
+---
+
+# Key Achievements
+
+---
+
+## What We Accomplished
+
+### Code Quality
+✅ **Clean Architecture** - Well-organized, maintainable code  
+✅ **Design Patterns** - 7 Gang of Four patterns applied  
+✅ **Comprehensive Tests** - Unit tests for critical components  
+✅ **Documentation** - Hugo site with full docs  
+
+### User Experience
+✅ **Immersive Audio** - Background music + sound effects  
+✅ **Visual Themes** - 3 customizable themes  
+✅ **Flexible Controls** - Rebindable key bindings  
+✅ **Strategic Gameplay** - Next block preview  
+
+### Modern Features
+✅ **Cloud Persistence** - Supabase leaderboard  
+✅ **Professional UI** - Polished menu system  
+✅ **Error Handling** - Graceful failure recovery  
+
+---
+
+## Lessons Learned
+
+### Technical Insights
+
+1. **Design patterns aren't overhead** - They simplify complex systems
+2. **Refactoring pays dividends** - Clean code is faster to modify
+3. **User feedback matters** - Audio/visual cues enhance engagement
+4. **Testing saves time** - Caught bugs before they reached users
+
+### Team Collaboration
+
+- Clear code = easier collaboration
+- Consistent patterns = shared understanding
+- Documentation = knowledge transfer
+
+---
+
+## Future Enhancements
+
+### Potential Features
+
+**Gameplay**
+- 🎚️ Difficulty levels with speed scaling
+- 🤝 Multiplayer competitive mode
+- ⚡ Power-ups and special pieces
+- 🎯 Combo system with bonus points
+
+**Technical**
+- 🔊 Volume controls in settings
+- 💾 Local high score backup
+- 🏆 Achievement/medal system
+- ✨ Particle effects for line clears
+
+**Platform**
+- 📱 Mobile port
+- 🌐 Web version (Pygame Web)
+- 🎮 Gamepad support
+
+---
+
+## Live Demo
+
+### Running the Game
+
+```bash
+# Clone repository
+git clone https://github.com/Pbierley/TetrisMergeConflicts.git
+cd TetrisMergeConflicts
+
+# Run with uv (recommended)
+uv run Tetris.py
+
+# Or with Python
+pip install pygame supabase
+python Tetris.py
+```
+
+**Let's see it in action!** 🎮
+
+---
+
+## Resources
+
+### Links
+
+- 🌐 **Documentation Site**: https://pbierley.github.io/TetrisMergeConflicts/
+- 💻 **GitHub Repository**: https://github.com/Pbierley/TetrisMergeConflicts
+- 📚 **Gang of Four Patterns**: Design Patterns book (Gamma et al.)
+
+### Contact
+
+- Questions?
+- Suggestions?
+- Want to contribute?
+
+**Open an issue or pull request!**
+
+---
+
+# Questions?
+
+## Thank you for your attention!
+
+**Key Takeaways**:
+1. Design patterns make code better
+2. User experience drives engagement
+3. Clean architecture enables growth
+4. Testing prevents regression
+
+---
+
+# Appendix: Code Examples
+
+---
+
+## Collision Detection Algorithm
+
+```python
+def collides(self, piece):
+    """Check if piece collides with board boundaries or existing blocks"""
+    blocks = piece.get_blocks()
+    
+    for i in range(4):
+        for j in range(4):
+            if i * 4 + j in blocks:
+                board_x = piece.x + j
+                board_y = piece.y + i
+                
+                # Boundary checks
+                if (board_x < 0 or board_x >= self.width or 
+                    board_y >= self.height):
+                    return True
+                
+                # Collision with existing blocks
+                if board_y >= 0 and self.grid[board_y][board_x] != 0:
+                    return True
+    
+    return False
+```
+
+---
+
+## Line Clearing Algorithm
+
+```python
+def clear_lines(self):
+    """Clear completed lines and return count"""
+    lines_cleared = 0
+    y = self.height - 1
+    
+    while y >= 0:
+        if self._is_line_full(y):
+            # Remove full line
+            del self.grid[y]
+            # Add empty line at top
+            self.grid.insert(0, [0 for _ in range(self.width)])
+            lines_cleared += 1
+        else:
+            y -= 1
+    
+    return lines_cleared
+
+def _is_line_full(self, row):
+    """Check if a row is completely filled"""
+    return all(cell != 0 for cell in self.grid[row])
+```
+
+---
+
+## Piece Rotation Logic
+
+```python
+def rotate(self, board):
+    """Rotate piece clockwise if valid"""
+    old_rotation = self.rotation
+    self.rotation = (self.rotation + 1) % len(PIECES[self.type])
+    
+    if board.collides(self):
+        self.rotation = old_rotation  # Revert if collision
+        return False
+    
+    return True
+```
+
+---
+
+## Score Submission Flow
+
+```python
+def submit_score(self):
+    """Submit player score to leaderboard"""
+    try:
+        response = supabase.table("Leaderboard").insert({
+            "name": self.player_name,
+            "score": self.score
+        }).execute()
+        
+        # Fetch updated leaderboard
+        self.fetch_leaderboard()
+        
+    except Exception as e:
+        print(f"Error submitting score: {e}")
+        # Graceful degradation - continue without leaderboard
+```
+
+---
+
+# End of Presentation
+
+**Thank you!**
