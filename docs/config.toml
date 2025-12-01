@@ -1,0 +1,58 @@
+baseURL = "https://Pbierley.github.io/TetrisMergeConflicts/"
+languageCode = "en-us"
+title = "Tetris Game Documentation"
+theme = "PaperMod"
+
+enableRobotsTXT = true
+enableGitInfo = true
+
+[params]
+  description = "A modern Tetris implementation with cloud leaderboards and customizable controls"
+  author = "Pbierley"
+  ShowReadingTime = true
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowToc = true
+  TocOpen = true
+  
+  [params.homeInfoParams]
+    Title = "🎮 Tetris Game"
+    Content = "A feature-rich Tetris implementation built with Python and Pygame"
+  
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/Pbierley/TetrisMergeConflicts"
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+  [markup.highlight]
+    codeFences = true
+    guessSyntax = true
+    lineNos = false
+    style = "dracula"
+
+[[menu.main]]
+  name = "Home"
+  url = "/"
+  weight = 1
+
+[[menu.main]]
+  name = "Documentation"
+  url = "/docs/"
+  weight = 2
+
+[[menu.main]]
+  name = "GitHub"
+  url = "https://github.com/Pbierley/TetrisMergeConflicts"
+  weight = 3
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[taxonomies]
+  tag = "tags"
+  category = "categories"

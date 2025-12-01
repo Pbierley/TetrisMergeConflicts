@@ -74,7 +74,7 @@ paginate: true
 - Burndown: **2/11**
 
 
-> *Note: Week 2 and Week 3 date ranges overlap in source data; shown as provided.*
+
 
 ---
 
@@ -93,3 +93,11 @@ paginate: true
 - ✅ **Sprint goal met:** Audio & refactor completed; forecast achieved  
 - 🧪 Unit testing started (Week 4 milestone)  
 - 📌 **Follow-ups:** Confirm Landen/Josh end-of-sprint LOC & features for records
+
+---
+
+## Sprint 2 Plans
+
+1. Feature: Different Themes (Visual Customization)
+2. Feature: Making it Replayable (Game Loop Reset)
+3. Feature: Change Key Binds (Input Customization)

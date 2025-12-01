@@ -1,0 +1,14 @@
+# Hugo build output
+public/
+resources/_gen/
+
+# Hugo themes (installed during build)
+themes/
+
+# Hugo cache
+.hugo_build.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
