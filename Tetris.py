@@ -59,6 +59,13 @@ THEMES = {
     }
 }
 
+DEFAULT_KEYBINDS = {
+    "move_left": pygame.K_LEFT,
+    "move_right": pygame.K_RIGHT,
+    "move_down": pygame.K_DOWN,
+    "rotate": pygame.K_UP,
+    "hard_drop": pygame.K_SPACE
+}
 
 
 WINDOW_SIZE = (600, 500)
@@ -174,17 +181,21 @@ class Board:
 class Menu:
     """Manages the start menu system"""
     
-    def __init__(self, theme_name="Dark"):
-        self.state = "main"  # "main", "settings"
+    def __init__(self, theme_name="Dark", keybinds=None):
+        self.state = "main"  # "main", "settings", "controls"
         self.selected_option = 0  # Currently selected menu option
         self.theme_name = theme_name
         self.theme = THEMES[theme_name]
         self.theme_options = list(THEMES.keys())
         self.selected_theme_index = self.theme_options.index(theme_name)
         
+        # Keybinds
+        self.keybinds = keybinds if keybinds else DEFAULT_KEYBINDS.copy()
+        self.waiting_for_key = None  # Track which action is being rebound
+        
         # Menu options
         self.main_menu_options = ["Start Game", "Settings", "Quit"]
-        self.settings_menu_options = ["Theme", "Back"]
+        self.settings_menu_options = ["Theme", "Controls", "Back"]
     
     def handle_input(self, event):
         """Handle menu input"""
@@ -193,6 +204,8 @@ class Menu:
                 return self._handle_main_menu_input(event)
             elif self.state == "settings":
                 return self._handle_settings_menu_input(event)
+            elif self.state == "controls":
+                return self._handle_controls_menu_input(event)
         return None
     
     def _handle_main_menu_input(self, event):
@@ -220,7 +233,11 @@ class Menu:
         elif event.key == pygame.K_RETURN:
             if self.selected_option == 0:  # Theme
                 self._cycle_theme()
-            elif self.selected_option == 1:  # Back
+            elif self.selected_option == 1:  # Controls
+                self.state = "controls"
+                self.selected_option = 0
+                self.waiting_for_key = None
+            elif self.selected_option == 2:  # Back
                 self.state = "main"
                 self.selected_option = 0
         elif event.key == pygame.K_ESCAPE:
@@ -229,6 +246,44 @@ class Menu:
         elif event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
             if self.selected_option == 0:  # Theme option selected
                 self._cycle_theme()
+        return None
+    
+    def _handle_controls_menu_input(self, event):
+        """Handle controls menu input"""
+        # If waiting for a key to rebind
+        if self.waiting_for_key:
+            # Skip ESC to allow canceling
+            if event.key == pygame.K_ESCAPE:
+                self.waiting_for_key = None
+                return None
+            
+            # Rebind the key
+            self.keybinds[self.waiting_for_key] = event.key
+            self.waiting_for_key = None
+            return None
+        
+        # Normal navigation
+        control_options = list(self.keybinds.keys()) + ["Reset to Defaults", "Back"]
+        
+        if event.key == pygame.K_UP:
+            self.selected_option = (self.selected_option - 1) % len(control_options)
+        elif event.key == pygame.K_DOWN:
+            self.selected_option = (self.selected_option + 1) % len(control_options)
+        elif event.key == pygame.K_RETURN:
+            if self.selected_option < len(self.keybinds):  # A keybind option
+                # Start waiting for new key
+                action_name = list(self.keybinds.keys())[self.selected_option]
+                self.waiting_for_key = action_name
+            elif self.selected_option == len(control_options) - 2:  # Reset to Defaults
+                self.keybinds = DEFAULT_KEYBINDS.copy()
+            elif self.selected_option == len(control_options) - 1:  # Back
+                self.state = "settings"
+                self.selected_option = 0
+                self.waiting_for_key = None
+        elif event.key == pygame.K_ESCAPE:
+            self.state = "settings"
+            self.selected_option = 0
+            self.waiting_for_key = None
         return None
     
     def _cycle_theme(self):
@@ -245,6 +300,8 @@ class Menu:
             self._draw_main_menu(screen)
         elif self.state == "settings":
             self._draw_settings_menu(screen)
+        elif self.state == "controls":
+            self._draw_controls_menu(screen)
     
     def _draw_main_menu(self, screen):
         """Draw the main menu"""
@@ -307,7 +364,7 @@ class Menu:
                 
             color = (255, 255, 0) if i == self.selected_option else self.theme["text"]
             option_text = menu_font.render(display_text, True, color)
-            option_rect = option_text.get_rect(center=(WINDOW_SIZE[0] // 2, start_y + i * 80))
+            option_rect = option_text.get_rect(center=(WINDOW_SIZE[0] // 2, start_y + i * 70))
             screen.blit(option_text, option_rect)
             
             # Draw selection indicator
@@ -318,7 +375,7 @@ class Menu:
         if self.selected_option == 0:  # Theme option selected
             preview_font = pygame.font.SysFont('Calibri', 24, False, False)
             preview_text = preview_font.render("Press LEFT/RIGHT or ENTER to change theme", True, self.theme["text"])
-            preview_rect = preview_text.get_rect(center=(WINDOW_SIZE[0] // 2, 320))
+            preview_rect = preview_text.get_rect(center=(WINDOW_SIZE[0] // 2, 340))
             screen.blit(preview_text, preview_rect)
         
         # Instructions
@@ -335,10 +392,59 @@ class Menu:
             screen.blit(instruction_text, instruction_rect)
 
 
+    def _draw_controls_menu(self, screen):
+        """Draw the controls menu"""
+        # Title
+        title_font = pygame.font.SysFont('Calibri', 48, True, False)
+        title_text = title_font.render("CONTROLS", True, self.theme["text"])
+        title_rect = title_text.get_rect(center=(WINDOW_SIZE[0] // 2, 50))
+        screen.blit(title_text, title_rect)
+        
+        # Control options
+        menu_font = pygame.font.SysFont('Calibri', 28, True, False)
+        start_y = 120
+        
+        control_options = list(self.keybinds.keys()) + ["Reset to Defaults", "Back"]
+        
+        for i, option in enumerate(control_options):
+            if i < len(self.keybinds):
+                action_name = option.replace("_", " ").title()
+                key_name = pygame.key.name(self.keybinds[option]).upper()
+                
+                if self.waiting_for_key == option:
+                    display_text = f"{action_name}: [Press a key...]"
+                else:
+                    display_text = f"{action_name}: {key_name}"
+            else:
+                display_text = option
+                
+            color = (255, 255, 0) if i == self.selected_option else self.theme["text"]
+            option_text = menu_font.render(display_text, True, color)
+            option_rect = option_text.get_rect(center=(WINDOW_SIZE[0] // 2, start_y + i * 45))
+            screen.blit(option_text, option_rect)
+            
+            # Draw selection indicator
+            if i == self.selected_option:
+                pygame.draw.rect(screen, (255, 255, 0), option_rect.inflate(20, 10), 3)
+        
+        # Instructions
+        instruction_font = pygame.font.SysFont('Calibri', 20, False, False)
+        instructions = [
+            "Use UP/DOWN arrows to navigate",
+            "Press ENTER to rebind a key",
+            "Press ESC to cancel rebinding or go back"
+        ]
+        
+        for i, instruction in enumerate(instructions):
+            instruction_text = instruction_font.render(instruction, True, self.theme["text"])
+            instruction_rect = instruction_text.get_rect(center=(WINDOW_SIZE[0] // 2, 430 + i * 22))
+            screen.blit(instruction_text, instruction_rect)
+
+
 class Game:
     """Manages the game state, score, and piece spawning"""
 
-    def __init__(self, width=10, height=20, sounds=None, theme_name="Dark"):
+    def __init__(self, width=10, height=20, sounds=None, theme_name="Dark", keybinds=None):
         self.board = Board(width, height)
         self.current_piece = None
         self.next_piece = None
@@ -349,6 +455,7 @@ class Game:
         self.spawn_new_piece()
         self.sounds = sounds
         self.set_theme(theme_name)
+        self.keybinds = keybinds if keybinds else DEFAULT_KEYBINDS.copy()
     
     def set_theme(self, theme_name):
         """Set theme for the game"""
@@ -623,8 +730,8 @@ def main():
                     # Handle menu input
                     menu_action = menu.handle_input(event)
                     if menu_action == "start_game":
-                        # Start the game with the selected theme
-                        game = Game(sounds=sounds, theme_name=menu.theme_name)
+                        # Start the game with the selected theme and keybinds
+                        game = Game(sounds=sounds, theme_name=menu.theme_name, keybinds=menu.keybinds)
                         game_state = "playing"
                         counter = 0
                         pressing_down = False
@@ -635,17 +742,17 @@ def main():
                     if event.key == pygame.K_ESCAPE and game.state == "playing":
                         # Return to menu from game
                         game_state = "menu"
-                        menu = Menu(theme_name=game.theme_name if game else "Dark")
+                        menu = Menu(theme_name=game.theme_name if game else "Dark", keybinds=game.keybinds)
                         game = None
-                    elif event.key == pygame.K_UP:
+                    elif event.key == game.keybinds["rotate"]:
                         game.rotate_piece()
-                    elif event.key == pygame.K_LEFT:
+                    elif event.key == game.keybinds["move_left"]:
                         game.move_piece(-1, 0)
-                    elif event.key == pygame.K_RIGHT:
+                    elif event.key == game.keybinds["move_right"]:
                         game.move_piece(1, 0)
-                    elif event.key == pygame.K_SPACE:
+                    elif event.key == game.keybinds["hard_drop"]:
                         game.drop_piece()
-                    elif event.key == pygame.K_DOWN:
+                    elif event.key == game.keybinds["move_down"]:
                         pressing_down = True
                     elif game.state == "entering_name":
                         if event.key == pygame.K_RETURN:
@@ -677,15 +784,16 @@ def main():
                         game.set_theme("Dark")
                     elif event.key == pygame.K_q and game.state == "gameover":
                         game_state = "menu"
-                        menu = Menu(theme_name=game.theme_name)  # Keep the theme from game
+                        menu = Menu(theme_name=game.theme_name, keybinds=game.keybinds)  # Keep the theme and keybinds from game
                         game = None
                     elif event.key == pygame.K_r and game.state == "gameover":
-                        game = Game(sounds=sounds, theme_name=game.theme_name)
+                        game = Game(sounds=sounds, theme_name=game.theme_name, keybinds=game.keybinds)
                         counter = 0
                         pressing_down = False
                         
-            if event.type == pygame.KEYUP and event.key == pygame.K_DOWN:
-                pressing_down = False
+            if event.type == pygame.KEYUP:
+                if game and event.key == game.keybinds.get("move_down", pygame.K_DOWN):
+                    pressing_down = False
         
         # Draw everything based on current state
         if game_state == "menu":
